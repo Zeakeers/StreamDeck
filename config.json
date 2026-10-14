@@ -1,0 +1,14 @@
+{
+  "server": {
+    "port": 3000
+  },
+  "obs": {
+    "host": "127.0.0.1",
+    "port": 4455,
+    "password": "",
+    "autoConnect": true
+  },
+  "soundboard": {
+    "volume": 0.8
+  }
+}
