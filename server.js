@@ -7,6 +7,7 @@ const multer = require('multer');
 
 const ObsManager = require('./lib/obsManager');
 const AudioManager = require('./lib/audioManager');
+const BgmManager = require('./lib/bgmManager');
 const { printServerBanner, getPrimaryIp } = require('./lib/networkUtils');
 
 const CONFIG_PATH = path.join(__dirname, 'config.json');
@@ -15,7 +16,8 @@ const CONFIG_PATH = path.join(__dirname, 'config.json');
 let config = {
   server: { port: 3000 },
   obs: { host: '127.0.0.1', port: 4455, password: '', autoConnect: true },
-  soundboard: { volume: 0.8 }
+  soundboard: { volume: 0.8 },
+  bgm: { volume: 0.5 }
 };
 
 if (fs.existsSync(CONFIG_PATH)) {
@@ -42,50 +44,77 @@ const io = new Server(server, {
 });
 
 const soundsDir = path.join(__dirname, 'sounds');
+const bgmDir = path.join(__dirname, 'bgm');
+
+const bgmManager = new BgmManager(bgmDir, config.bgm?.volume || 0.5);
 const audioManager = new AudioManager(soundsDir);
+audioManager.setBgmManager(bgmManager);
 const obsManager = new ObsManager();
 
+function getCleanSafeFilename(originalName, defaultPrefix, targetDir) {
+  let cleanName = originalName;
+  try {
+    cleanName = Buffer.from(originalName, 'latin1').toString('utf8');
+  } catch (_) {}
+
+  const ext = path.extname(cleanName).toLowerCase();
+  let baseName = path.basename(cleanName, ext).replace(/[/\\?%*:|"<>]/g, '').trim() || defaultPrefix;
+  let targetName = `${baseName}${ext}`;
+  let counter = 1;
+  while (fs.existsSync(path.join(targetDir, targetName))) {
+    targetName = `${baseName}_${counter}${ext}`;
+    counter++;
+  }
+  return targetName;
+}
+
 // Setup Multer for soundboard file uploads
-const storage = multer.diskStorage({
+const soundStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, soundsDir);
   },
   filename: (req, file, cb) => {
-    const originalExt = path.extname(file.originalname).toLowerCase();
-    const baseName = path.basename(file.originalname, originalExt).replace(/[/\\?%*:|"<>]/g, '').trim() || 'Sound';
-    let targetName = `${baseName}${originalExt}`;
-    let counter = 1;
-    while (fs.existsSync(path.join(soundsDir, targetName))) {
-      targetName = `${baseName}_${counter}${originalExt}`;
-      counter++;
-    }
-    cb(null, targetName);
+    cb(null, getCleanSafeFilename(file.originalname, 'Sound', soundsDir));
   }
 });
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const allowed = ['.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac'];
-    if (allowed.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Format file tidak didukung. Gunakan MP3, WAV, OGG, atau M4A.'));
-    }
+// Setup Multer for BGM file uploads
+const bgmStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, bgmDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, getCleanSafeFilename(file.originalname, 'BGM', bgmDir));
   }
 });
+
+const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowed = ['.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac'];
+  if (allowed.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Format file tidak didukung. Gunakan MP3, WAV, OGG, atau M4A.'));
+  }
+};
+
+const uploadSound = multer({ storage: soundStorage, limits: { fileSize: 50 * 1024 * 1024 }, fileFilter });
+const uploadBgm = multer({ storage: bgmStorage, limits: { fileSize: 100 * 1024 * 1024 }, fileFilter });
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/sounds', express.static(soundsDir));
+app.use('/bgm', express.static(bgmDir));
 
 // --- API Endpoints ---
 app.get('/api/status', (req, res) => {
   res.json({
     obs: obsManager.getState(),
     sounds: audioManager.getSounds(),
+    bgm: {
+      tracks: bgmManager.getTracks(),
+      state: bgmManager.getState()
+    },
     ip: getPrimaryIp(),
     config
   });
@@ -96,12 +125,18 @@ app.get('/api/config', (req, res) => {
 });
 
 app.post('/api/config', async (req, res) => {
-  const { obs, soundboard } = req.body;
+  const { obs, soundboard, bgm } = req.body;
   if (obs) {
     config.obs = { ...config.obs, ...obs };
   }
   if (soundboard) {
     config.soundboard = { ...config.soundboard, ...soundboard };
+  }
+  if (bgm) {
+    config.bgm = { ...config.bgm, ...bgm };
+    if (bgm.volume !== undefined) {
+      bgmManager.setVolume(bgm.volume);
+    }
   }
   saveConfig();
 
@@ -167,7 +202,7 @@ app.get('/api/sounds', (req, res) => {
   res.json(audioManager.getSounds());
 });
 
-app.post('/api/sounds/upload', upload.single('audio'), (req, res) => {
+app.post('/api/sounds/upload', uploadSound.single('audio'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Tidak ada file audio yang diunggah.' });
   }
@@ -207,6 +242,7 @@ app.post('/api/sounds/play', async (req, res) => {
     const vol = volume !== undefined ? volume : config.soundboard.volume;
     await audioManager.play(filename, vol);
     io.emit('sound:started', { filename });
+    io.emit('bgm:state', bgmManager.getState());
     res.json({ success: true, filename });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -216,7 +252,78 @@ app.post('/api/sounds/play', async (req, res) => {
 app.post('/api/sounds/stop', (req, res) => {
   audioManager.stopAll();
   io.emit('sound:stopped');
+  io.emit('bgm:state', bgmManager.getState());
   res.json({ success: true });
+});
+
+// --- BGM Endpoints ---
+app.get('/api/bgm', (req, res) => {
+  res.json({
+    tracks: bgmManager.getTracks(),
+    state: bgmManager.getState()
+  });
+});
+
+app.post('/api/bgm/play', async (req, res) => {
+  try {
+    const { filename } = req.body;
+    const state = await bgmManager.play(filename);
+    io.emit('bgm:state', state);
+    res.json({ success: true, state });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/bgm/stop', (req, res) => {
+  const state = bgmManager.stop();
+  io.emit('bgm:state', state);
+  res.json({ success: true, state });
+});
+
+app.post('/api/bgm/volume', (req, res) => {
+  const { volume } = req.body;
+  if (volume !== undefined) {
+    config.bgm.volume = volume;
+    saveConfig();
+  }
+  const state = bgmManager.setVolume(volume);
+  io.emit('bgm:state', state);
+  res.json({ success: true, state });
+});
+
+app.post('/api/bgm/upload', uploadBgm.single('audio'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Tidak ada file audio BGM yang diunggah.' });
+  }
+  const tracks = bgmManager.getTracks();
+  io.emit('bgm:updated', { tracks, state: bgmManager.getState() });
+  res.json({ success: true, file: req.file.filename, tracks });
+});
+
+app.put('/api/bgm/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const { name } = req.body;
+    const result = bgmManager.renameTrack(filename, name);
+    const tracks = bgmManager.getTracks();
+    io.emit('bgm:updated', { tracks, state: bgmManager.getState() });
+    res.json({ success: true, result, tracks });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete('/api/bgm/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const result = bgmManager.deleteTrack(filename);
+    const tracks = bgmManager.getTracks();
+    io.emit('bgm:updated', { tracks, state: bgmManager.getState() });
+    res.json({ success: true, result, tracks });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // --- OBS Manager to Socket.io Bridge ---
@@ -234,6 +341,10 @@ io.on('connection', (socket) => {
   socket.emit('init:state', {
     obs: obsManager.getState(),
     sounds: audioManager.getSounds(),
+    bgm: {
+      tracks: bgmManager.getTracks(),
+      state: bgmManager.getState()
+    },
     config
   });
 
@@ -293,7 +404,32 @@ io.on('connection', (socket) => {
   socket.on('sound:stop', (callback) => {
     audioManager.stopAll();
     io.emit('sound:stopped');
+    io.emit('bgm:state', bgmManager.getState());
     if (typeof callback === 'function') callback({ success: true });
+  });
+
+  socket.on('bgm:play', async (filename, callback) => {
+    try {
+      const state = await bgmManager.play(filename);
+      io.emit('bgm:state', state);
+      if (typeof callback === 'function') callback({ success: true, state });
+    } catch (err) {
+      if (typeof callback === 'function') callback({ error: err.message });
+    }
+  });
+
+  socket.on('bgm:stop', (callback) => {
+    const state = bgmManager.stop();
+    io.emit('bgm:state', state);
+    if (typeof callback === 'function') callback({ success: true, state });
+  });
+
+  socket.on('bgm:volume', (volume, callback) => {
+    config.bgm.volume = volume;
+    saveConfig();
+    const state = bgmManager.setVolume(volume);
+    io.emit('bgm:state', state);
+    if (typeof callback === 'function') callback({ success: true, state });
   });
 });
 
