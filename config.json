@@ -10,5 +10,8 @@
   },
   "soundboard": {
     "volume": 0.8
+  },
+  "bgm": {
+    "volume": 0.6
   }
 }
