@@ -3,66 +3,91 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#121826">
+  <meta name="theme-color" content="#0f0f0f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Stream Deck Web</title>
+  <title>Stream Deck</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="tailwind.css">
 </head>
-<body>
+<body class="flex flex-col h-full overflow-hidden select-none">
 
-  <!-- Top Bar -->
-  <header class="top-bar">
-    <div class="brand">
-      <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="2" y="2" width="20" height="20" rx="5"></rect>
-        <path d="M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7zM14 14h3v3h-3z"></path>
-      </svg>
-      <span class="brand-title">STREAMDECK</span>
+  <!-- Top Bar (YouTube / Instagram Style Header) -->
+  <header class="top-bar-el border-b border-[var(--app-border)] bg-[var(--app-header-bg)] px-3.5 py-2.5 flex items-center justify-between z-30 flex-shrink-0">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 rounded-lg bg-[var(--app-card-active)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text)]">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+          <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+          <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+          <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+        </svg>
+      </div>
+      <span class="text-[0.95rem] font-bold tracking-tight text-[var(--app-text)]">StreamDeck</span>
     </div>
 
-    <div class="status-group">
-      <div id="obs-status" class="obs-status-badge">
-        <span class="status-dot"></span>
+    <div class="flex items-center gap-1.5">
+      <!-- OBS Status Badge -->
+      <div id="obs-status" class="obs-status-badge flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition mr-1">
+        <span class="status-dot w-2 h-2 rounded-full bg-red-500"></span>
         <span id="obs-status-text">OBS Off</span>
       </div>
 
-      <button id="btn-fullscreen" class="btn-icon" title="Layar Penuh">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+      <!-- Theme Toggle (Light / Dark Mode) -->
+      <button id="btn-theme-toggle" class="w-8 h-8 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition active:scale-90" title="Ubah Tema (Light / Dark)">
+        <!-- Sun icon (for dark mode) -->
+        <svg id="theme-icon-sun" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <!-- Moon icon (for light mode) -->
+        <svg id="theme-icon-moon" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
       </button>
 
-      <button id="btn-wake" class="btn-icon" title="Cegah HP Tidur">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="5"></circle>
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+      <!-- Wake Lock Toggle (Screen Stay On) -->
+      <button id="btn-wake" class="w-8 h-8 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition active:scale-90" title="Cegah HP Tidur (Layar Tetap Nyala)">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </button>
+
+      <!-- Fullscreen Toggle -->
+      <button id="btn-fullscreen" class="w-8 h-8 rounded-full flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] transition active:scale-90" title="Layar Penuh">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
         </svg>
       </button>
     </div>
   </header>
 
-  <!-- Quick Bar (Stream, Rec, Mic) -->
-  <div class="quick-bar">
-    <button id="quick-stream-btn" class="quick-btn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+  <!-- Quick Action Controls (STREAM, REC, MIC) -->
+  <div class="px-3 py-2 bg-[var(--app-header-bg)] border-b border-[var(--app-border)] grid grid-cols-3 gap-2 flex-shrink-0">
+    <button id="quick-stream-btn" class="quick-btn flex items-center justify-center gap-2 py-2 px-2.5 rounded-lg text-xs font-semibold active:scale-95 transition">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <circle cx="12" cy="12" r="2"></circle>
         <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
       </svg>
       <span id="stream-label">STREAM</span>
     </button>
 
-    <button id="quick-record-btn" class="quick-btn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="7" fill="currentColor"></circle>
-      </svg>
+    <button id="quick-record-btn" class="quick-btn flex items-center justify-center gap-2 py-2 px-2.5 rounded-lg text-xs font-semibold active:scale-95 transition">
+      <span class="w-2.5 h-2.5 rounded-full bg-red-600"></span>
       <span id="record-label">REC</span>
     </button>
 
-    <button id="quick-mute-btn" class="quick-btn">
-      <svg id="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button id="quick-mute-btn" class="quick-btn flex items-center justify-center gap-2 py-2 px-2.5 rounded-lg text-xs font-semibold active:scale-95 transition">
+      <svg id="mic-icon" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
         <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
         <line x1="12" y1="19" x2="12" y2="23"></line>
@@ -72,10 +97,10 @@
     </button>
   </div>
 
-  <!-- Navigation Tabs -->
-  <nav class="tabs-nav">
-    <button class="tab-btn active" data-tab="tab-scenes">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+  <!-- Navigation Chips (YouTube Category Pill Style) -->
+  <nav class="tabs-nav px-3 py-2 bg-[var(--app-header-bg)] flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-[var(--app-border)] flex-shrink-0">
+    <button class="tab-btn active px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap active:scale-95" data-tab="tab-scenes">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
         <rect x="2" y="3" width="20" height="14" rx="2"></rect>
         <line x1="8" y1="21" x2="16" y2="21"></line>
         <line x1="12" y1="17" x2="12" y2="21"></line>
@@ -83,31 +108,28 @@
       <span>Scenes</span>
     </button>
 
-    <button class="tab-btn" data-tab="tab-sounds">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button class="tab-btn px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap active:scale-95" data-tab="tab-sounds">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
         <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
       </svg>
-      <span>Soundboard</span>
+      <span>Soundboard & BGM</span>
     </button>
 
-    <button class="tab-btn" data-tab="tab-mixer">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button class="tab-btn px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap active:scale-95" data-tab="tab-mixer">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
         <line x1="4" y1="21" x2="4" y2="14"></line>
         <line x1="4" y1="10" x2="4" y2="3"></line>
         <line x1="12" y1="21" x2="12" y2="12"></line>
         <line x1="12" y1="8" x2="12" y2="3"></line>
         <line x1="20" y1="21" x2="20" y2="16"></line>
         <line x1="20" y1="12" x2="20" y2="3"></line>
-        <line x1="1" y1="14" x2="7" y2="14"></line>
-        <line x1="9" y1="8" x2="15" y2="8"></line>
-        <line x1="17" y1="16" x2="23" y2="16"></line>
       </svg>
       <span>Audio Mix</span>
     </button>
 
-    <button class="tab-btn" data-tab="tab-settings">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button class="tab-btn px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap active:scale-95" data-tab="tab-settings">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
       </svg>
@@ -115,18 +137,18 @@
     </button>
   </nav>
 
-  <!-- Main Views -->
-  <main class="main-content">
+  <!-- Main Views Container -->
+  <main class="main-content flex-1 min-h-0 relative w-full overflow-hidden">
 
-    <!-- 2-Page Deck Slider (HANYA Scenes & Soundboard) -->
+    <!-- 2-Page Deck Slider (HANYA Scenes & Soundboard/BGM) -->
     <div id="deck-slider" class="deck-slider">
 
       <!-- Slide 1: Scenes Grid -->
       <section id="tab-scenes" class="deck-slide">
-        <div class="section-header">
-          <span class="section-title">OBS Scenes</span>
-          <button id="btn-refresh-scenes" class="btn-icon" title="Perbarui Scene">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-[var(--app-text-dim)]">OBS Scenes</span>
+          <button id="btn-refresh-scenes" class="w-7 h-7 rounded-lg bg-[var(--app-card)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] active:scale-90 transition" title="Perbarui Scene">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5">
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
             </svg>
           </button>
@@ -136,101 +158,193 @@
           <!-- Rendered dynamically -->
         </div>
 
-        <div id="scenes-empty" class="empty-notice" style="display: none;">
+        <div id="scenes-empty" class="text-center py-12 px-4 text-sm text-[var(--app-text-dim)] leading-relaxed" style="display: none;">
           Belum terhubung ke OBS Studio.<br>
-          Buka OBS Studio di PC kamu, lalu periksa menu <b>Tools &gt; WebSocket Server Settings</b>.
+          Buka OBS Studio di PC, lalu periksa menu <span class="text-[var(--app-text)] font-medium">Tools &gt; WebSocket Server Settings</span>.
         </div>
       </section>
 
-      <!-- Slide 2: Soundboard Grid -->
+      <!-- Slide 2: Soundboard & BGM Grid -->
       <section id="tab-sounds" class="deck-slide">
-        <div class="soundboard-header-bar">
-          <div class="soundboard-actions">
-            <button id="btn-manage-sounds" class="btn-secondary-action">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-              </svg>
-              <span id="manage-label">Kelola Sound</span>
-            </button>
 
-            <input type="file" id="sound-file-input" accept=".mp3,.wav,.ogg,.m4a,.flac,.aac" style="display:none">
-            <button id="btn-upload-sound" class="btn-primary-action">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- Audio Mode Segmented Control (Instagram / iOS Style) -->
+        <div class="audio-mode-selector p-1 rounded-xl flex gap-1 mb-3">
+          <button id="btn-mode-soundboard" class="mode-pill active flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            <span>Soundboard</span>
+          </button>
+
+          <button id="btn-mode-bgm" class="mode-pill flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-[var(--app-text-dim)] hover:text-[var(--app-text)] transition flex items-center justify-center gap-1.5 relative">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+            </svg>
+            <span>BGM Looper</span>
+            <span id="bgm-active-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-500" style="display: none;"></span>
+          </button>
+        </div>
+
+        <!-- BGM Status & Dual Volume Sliders (YouTube Mini-Player Style) -->
+        <div id="bgm-status-bar" class="bgm-status-card rounded-xl p-3 mb-3">
+          <!-- BGM Track Title & Controls -->
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+              <div class="w-7 h-7 rounded-lg bg-[var(--app-card)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text)] flex-shrink-0">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M9 18V5l12-2v13"></path>
+                  <circle cx="6" cy="18" r="3"></circle>
+                  <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div id="bgm-current-title" class="text-xs font-bold text-[var(--app-text)] truncate">BGM: Tidak Ada</div>
+                <div class="mt-0.5">
+                  <span id="bgm-status-badge" class="inline-block text-[0.65rem] font-bold px-1.5 py-0.5 rounded bg-[var(--app-card)] text-[var(--app-text-dim)] uppercase tracking-wide">OFF</span>
+                </div>
+              </div>
+            </div>
+
+            <button id="btn-stop-bgm" class="px-2.5 py-1.5 rounded-lg bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] border border-[var(--app-border)] text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 active:scale-95" title="Stop Background Music">
+              <span class="w-2 h-2 rounded-sm bg-red-500"></span>
+              STOP BGM
+            </button>
+          </div>
+
+          <!-- Dual Volume Sliders (Soundboard SFX & BGM) -->
+          <div class="grid grid-cols-2 gap-3 pt-2.5 border-t border-[var(--app-border)]">
+            <div class="flex flex-col gap-1.5">
+              <div class="flex justify-between items-center text-[0.7rem] font-semibold text-[var(--app-text-muted)]">
+                <span>Vol Soundboard</span>
+                <span id="vol-sfx-val" class="text-[var(--app-text)] font-mono">80%</span>
+              </div>
+              <input type="range" id="soundboard-vol" class="w-full" min="0" max="1" step="0.05" value="0.8">
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <div class="flex justify-between items-center text-[0.7rem] font-semibold text-[var(--app-text-muted)]">
+                <span>Vol BGM</span>
+                <span id="vol-bgm-val" class="text-[var(--app-text)] font-mono">50%</span>
+              </div>
+              <input type="range" id="bgm-vol" class="w-full" min="0" max="1" step="0.05" value="0.5">
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION A: SOUNDBOARD SFX -->
+        <div id="section-soundboard" class="audio-sub-section">
+          <div class="flex items-center gap-2 mb-3">
+            <button id="btn-upload-sound" class="flex-1 py-2 px-3 rounded-lg bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="17 8 12 3 7 8"></polyline>
                 <line x1="12" y1="3" x2="12" y2="15"></line>
               </svg>
               <span>+ Upload Audio</span>
             </button>
+
+            <button id="btn-manage-sounds" class="btn-secondary-action py-2 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 active:scale-95">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              <span id="manage-label">Kelola</span>
+            </button>
+
+            <button id="btn-stop-all" class="py-2 px-3 rounded-lg bg-red-950/30 hover:bg-red-950/50 border border-red-900/40 text-red-500 text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95">
+              <span class="w-2 h-2 rounded-sm bg-red-500"></span>
+              STOP SFX
+            </button>
+
+            <input type="file" id="sound-file-input" accept=".mp3,.wav,.ogg,.m4a,.flac,.aac" style="display:none">
+          </div>
+
+          <div id="sounds-grid" class="deck-grid">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <div id="sounds-empty" class="text-center py-10 px-4 text-sm text-[var(--app-text-dim)] leading-relaxed" style="display: none;">
+            Belum ada soundboard.<br>
+            Klik tombol <span class="text-[var(--app-text)] font-semibold">+ Upload Audio</span> untuk menambahkan file suara.
           </div>
         </div>
 
-        <div class="soundboard-controls">
-          <div class="vol-control">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-            </svg>
-            <input type="range" id="soundboard-vol" class="vol-slider" min="0" max="1" step="0.05" value="0.8">
-            <span id="vol-value" style="font-size: 0.75rem; color: var(--text-dim); min-width: 32px;">80%</span>
+        <!-- SECTION B: BGM LOOPER -->
+        <div id="section-bgm" class="audio-sub-section" style="display: none;">
+          <div class="flex items-center gap-2 mb-3">
+            <button id="btn-upload-bgm" class="flex-1 py-2 px-3 rounded-lg bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] border border-[var(--app-border)] text-[var(--app-text)] text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <span>+ Upload BGM</span>
+            </button>
+
+            <button id="btn-manage-bgm" class="btn-secondary-action py-2 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 active:scale-95">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              <span id="manage-bgm-label">Kelola</span>
+            </button>
+
+            <input type="file" id="bgm-file-input" accept=".mp3,.wav,.ogg,.m4a,.flac,.aac" style="display:none">
           </div>
 
-          <button id="btn-stop-all" class="btn-stop-audio">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-              <rect x="5" y="5" width="14" height="14" rx="2"></rect>
-            </svg>
-            STOP
-          </button>
+          <div id="bgm-grid" class="deck-grid">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <div id="bgm-empty" class="text-center py-10 px-4 text-sm text-[var(--app-text-dim)] leading-relaxed" style="display: none;">
+            Belum ada background music.<br>
+            Klik tombol <span class="text-[var(--app-text)] font-semibold">+ Upload BGM</span> untuk menambahkan musik latar.
+          </div>
         </div>
 
-        <div id="sounds-grid" class="deck-grid">
-          <!-- Rendered dynamically -->
-        </div>
-
-        <div id="sounds-empty" class="empty-notice" style="display: none;">
-          Belum ada soundboard.<br>
-          Klik tombol <b>+ Upload Audio</b> di atas untuk menambahkan file musik/meme kamu.
-        </div>
       </section>
 
     </div>
 
     <!-- Standalone View: Audio Mixer -->
     <section id="tab-mixer" class="standalone-view" style="display: none;">
-      <div class="section-header">
-        <span class="section-title">OBS Audio Sources</span>
-        <button class="btn-back-to-deck btn-icon" title="Kembali ke Deck">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+      <div class="flex items-center justify-between mb-3.5">
+        <span class="text-xs font-bold uppercase tracking-wider text-[var(--app-text-dim)]">OBS Audio Sources</span>
+        <button class="btn-back-to-deck w-7 h-7 rounded-lg bg-[var(--app-card)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] active:scale-90 transition" title="Kembali ke Deck">
+          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </div>
 
-      <div id="audio-list" class="audio-list">
+      <div id="audio-list" class="flex flex-col gap-2">
         <!-- Rendered dynamically -->
       </div>
 
-      <div id="mixer-empty" class="empty-notice" style="display: none;">
+      <div id="mixer-empty" class="text-center py-12 px-4 text-sm text-[var(--app-text-dim)] leading-relaxed" style="display: none;">
         Tidak ada input audio ditemukan dari OBS. Hubungkan OBS terlebih dahulu.
       </div>
     </section>
 
     <!-- Standalone View: Settings -->
     <section id="tab-settings" class="standalone-view" style="display: none;">
-      <div class="section-header">
-        <span class="section-title">Pengaturan</span>
-        <button class="btn-back-to-deck btn-icon" title="Kembali ke Deck">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-xs font-bold uppercase tracking-wider text-[var(--app-text-dim)]">Pengaturan</span>
+        <button class="btn-back-to-deck w-7 h-7 rounded-lg bg-[var(--app-card)] border border-[var(--app-border)] flex items-center justify-center text-[var(--app-text-muted)] hover:text-[var(--app-text)] active:scale-90 transition" title="Kembali ke Deck">
+          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </div>
-      <div class="settings-card">
-        <h3 class="settings-card-title">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+
+      <div class="bg-[var(--app-surface)] border border-[var(--app-border)] rounded-xl p-4 mb-3.5">
+        <h3 class="text-sm font-bold text-[var(--app-text)] mb-3 flex items-center gap-2">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 text-[var(--app-text-muted)]" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
             <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
             <line x1="6" y1="6" x2="6.01" y2="6"></line>
@@ -239,52 +353,68 @@
           Koneksi OBS Studio
         </h3>
 
-        <div class="form-group">
-          <label>Host / IP PC</label>
-          <input type="text" id="obs-host" class="form-input" placeholder="127.0.0.1">
+        <div class="mb-3">
+          <label class="block text-xs font-semibold text-[var(--app-text-muted)] mb-1">Host / IP PC</label>
+          <input type="text" id="obs-host" class="w-full bg-[var(--app-input-bg)] border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-[var(--app-text)] focus:outline-none focus:border-[var(--app-border-strong)] transition" placeholder="127.0.0.1">
         </div>
 
-        <div class="form-group">
-          <label>Port WebSocket</label>
-          <input type="number" id="obs-port" class="form-input" placeholder="4455">
+        <div class="mb-3">
+          <label class="block text-xs font-semibold text-[var(--app-text-muted)] mb-1">Port WebSocket</label>
+          <input type="number" id="obs-port" class="w-full bg-[var(--app-input-bg)] border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-[var(--app-text)] focus:outline-none focus:border-[var(--app-border-strong)] transition" placeholder="4455">
         </div>
 
-        <div class="form-group">
-          <label>Password (Kosongkan jika tanpa password)</label>
-          <input type="password" id="obs-password" class="form-input" placeholder="Password OBS">
+        <div class="mb-3.5">
+          <label class="block text-xs font-semibold text-[var(--app-text-muted)] mb-1">Password</label>
+          <input type="password" id="obs-password" class="w-full bg-[var(--app-input-bg)] border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-[var(--app-text)] focus:outline-none focus:border-[var(--app-border-strong)] transition" placeholder="Kosongkan jika tanpa password">
         </div>
 
-        <button id="btn-save-obs" class="btn-primary">Hubungkan ke OBS</button>
+        <button id="btn-save-obs" class="w-full py-2.5 px-4 rounded-lg bg-[var(--app-chip-active-bg)] text-[var(--app-chip-active-text)] font-bold text-xs active:scale-[0.98] transition">
+          Hubungkan ke OBS
+        </button>
       </div>
 
-      <div class="settings-card">
-        <h3 class="settings-card-title">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+      <div class="bg-[var(--app-surface)] border border-[var(--app-border)] rounded-xl p-4">
+        <h3 class="text-sm font-bold text-[var(--app-text)] mb-3 flex items-center gap-2">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 text-[var(--app-text-muted)]" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
             <line x1="12" y1="18" x2="12.01" y2="18"></line>
           </svg>
-          Preferensi Tampilan HP
+          Preferensi Tampilan
         </h3>
 
-        <div class="setting-toggle-row">
+        <!-- Light Mode Toggle Switch -->
+        <div class="flex items-center justify-between py-2.5 border-b border-[var(--app-border)]">
           <div>
-            <div style="font-size: 0.9rem; font-weight: 600;">Getar Tombol (Haptic)</div>
-            <div style="font-size: 0.75rem; color: var(--text-dim);">Efek getar saat tombol disentuh di HP</div>
+            <div class="text-xs font-bold text-[var(--app-text)]">Mode Terang (Light Mode)</div>
+            <div class="text-[0.7rem] text-[var(--app-text-dim)]">Ganti antara tampilan gelap dan terang</div>
           </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="toggle-vibrate" checked>
-            <span class="toggle-slider"></span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="toggle-lightmode" class="sr-only peer">
+            <div class="w-9 h-5 bg-[#333333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
           </label>
         </div>
 
-        <div class="setting-toggle-row">
+        <!-- Haptic Feedback Toggle -->
+        <div class="flex items-center justify-between py-2.5 border-b border-[var(--app-border)]">
           <div>
-            <div style="font-size: 0.9rem; font-weight: 600;">Layar Tetap Menyala (WakeLock)</div>
-            <div style="font-size: 0.75rem; color: var(--text-dim);">Cegah layar HP redup / mati otomatis</div>
+            <div class="text-xs font-bold text-[var(--app-text)]">Getar Tombol (Haptic)</div>
+            <div class="text-[0.7rem] text-[var(--app-text-dim)]">Efek getar saat tombol disentuh</div>
           </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="toggle-wakelock">
-            <span class="toggle-slider"></span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="toggle-vibrate" checked class="sr-only peer">
+            <div class="w-9 h-5 bg-[#333333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+
+        <!-- WakeLock Toggle -->
+        <div class="flex items-center justify-between py-2.5">
+          <div>
+            <div class="text-xs font-bold text-[var(--app-text)]">Layar Tetap Menyala (WakeLock)</div>
+            <div class="text-[0.7rem] text-[var(--app-text-dim)]">Mencegah layar HP redup / mati otomatis</div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="toggle-wakelock" class="sr-only peer">
+            <div class="w-9 h-5 bg-[#333333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
           </label>
         </div>
       </div>
@@ -292,17 +422,17 @@
 
   </main>
 
-  <!-- Modal Rename Sound -->
-  <div id="rename-modal" class="modal-overlay" style="display: none;">
-    <div class="modal-content">
-      <h3 class="modal-title">Ganti Nama Sound</h3>
-      <div class="form-group" style="margin-top: 12px;">
-        <label>Nama Tampilan Baru:</label>
-        <input type="text" id="rename-input" class="form-input" placeholder="Contoh: Efek Ketawa">
+  <!-- Modal Rename Sound & BGM (Instagram Clean Dialog) -->
+  <div id="rename-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50" style="display: none;">
+    <div class="bg-[var(--app-surface)] border border-[var(--app-border-strong)] rounded-2xl p-5 w-full max-w-sm shadow-2xl">
+      <h3 class="modal-title text-sm font-bold text-[var(--app-text)]">Ganti Nama</h3>
+      <div class="mt-3 mb-4">
+        <label class="block text-[0.75rem] font-semibold text-[var(--app-text-muted)] mb-1">Nama Baru:</label>
+        <input type="text" id="rename-input" class="w-full bg-[var(--app-input-bg)] border border-[var(--app-border)] rounded-lg px-3 py-2 text-sm text-[var(--app-text)] focus:outline-none focus:border-[var(--app-text)] transition">
       </div>
-      <div class="modal-actions">
-        <button id="btn-cancel-rename" class="btn-modal-cancel">Batal</button>
-        <button id="btn-confirm-rename" class="btn-modal-save">Simpan</button>
+      <div class="flex gap-2">
+        <button id="btn-cancel-rename" class="flex-1 py-2 rounded-lg bg-[var(--app-card)] hover:bg-[var(--app-card-hover)] text-[var(--app-text)] text-xs font-bold transition active:scale-95">Batal</button>
+        <button id="btn-confirm-rename" class="flex-1 py-2 rounded-lg bg-[var(--app-chip-active-bg)] text-[var(--app-chip-active-text)] text-xs font-bold transition active:scale-95">Simpan</button>
       </div>
     </div>
   </div>
