@@ -12,9 +12,20 @@ let state = {
     isRecording: false
   },
   sounds: [],
+  bgm: {
+    tracks: [],
+    state: {
+      isPlaying: false,
+      currentTrack: null,
+      baseVolume: 0.5,
+      currentVolume: 0.5,
+      isDucked: false
+    }
+  },
   config: {
     obs: { host: '127.0.0.1', port: 4455, password: '' },
-    soundboard: { volume: 0.8 }
+    soundboard: { volume: 0.8 },
+    bgm: { volume: 0.5 }
   },
   vibrate: localStorage.getItem('sd_vibrate') !== 'false',
   wakeLock: null
@@ -27,6 +38,10 @@ const btnFullscreen = document.getElementById('btn-fullscreen');
 const btnWake = document.getElementById('btn-wake');
 const toggleVibrate = document.getElementById('toggle-vibrate');
 const toggleWakeLock = document.getElementById('toggle-wakelock');
+const btnThemeToggle = document.getElementById('btn-theme-toggle');
+const themeIconSun = document.getElementById('theme-icon-sun');
+const themeIconMoon = document.getElementById('theme-icon-moon');
+const toggleLightmode = document.getElementById('toggle-lightmode');
 
 const quickStreamBtn = document.getElementById('quick-stream-btn');
 const quickRecordBtn = document.getElementById('quick-record-btn');
@@ -39,23 +54,50 @@ const scenesGrid = document.getElementById('scenes-grid');
 const scenesEmpty = document.getElementById('scenes-empty');
 const btnRefreshScenes = document.getElementById('btn-refresh-scenes');
 
+// Audio Sub-Mode Switcher
+const btnModeSoundboard = document.getElementById('btn-mode-soundboard');
+const btnModeBgm = document.getElementById('btn-mode-bgm');
+const sectionSoundboard = document.getElementById('section-soundboard');
+const sectionBgm = document.getElementById('section-bgm');
+const bgmActiveDot = document.getElementById('bgm-active-dot');
+
+// BGM Status Card & Controls
+const bgmStatusBar = document.getElementById('bgm-status-bar');
+const bgmCurrentTitle = document.getElementById('bgm-current-title');
+const bgmStatusBadge = document.getElementById('bgm-status-badge');
+const btnStopBgm = document.getElementById('btn-stop-bgm');
+const bgmVolSlider = document.getElementById('bgm-vol');
+const volBgmVal = document.getElementById('vol-bgm-val');
+const soundboardVol = document.getElementById('soundboard-vol');
+const volSfxVal = document.getElementById('vol-sfx-val');
+
+// Soundboard Elements
 const soundsGrid = document.getElementById('sounds-grid');
 const soundsEmpty = document.getElementById('sounds-empty');
-const soundboardVol = document.getElementById('soundboard-vol');
-const volValue = document.getElementById('vol-value');
 const btnStopAll = document.getElementById('btn-stop-all');
 const btnManageSounds = document.getElementById('btn-manage-sounds');
 const manageLabel = document.getElementById('manage-label');
 const btnUploadSound = document.getElementById('btn-upload-sound');
 const soundFileInput = document.getElementById('sound-file-input');
 
+// BGM Grid & Management Elements
+const bgmGrid = document.getElementById('bgm-grid');
+const bgmEmpty = document.getElementById('bgm-empty');
+const btnManageBgm = document.getElementById('btn-manage-bgm');
+const manageBgmLabel = document.getElementById('manage-bgm-label');
+const btnUploadBgm = document.getElementById('btn-upload-bgm');
+const bgmFileInput = document.getElementById('bgm-file-input');
+
+// Modal Elements
 const renameModal = document.getElementById('rename-modal');
 const renameInput = document.getElementById('rename-input');
 const btnCancelRename = document.getElementById('btn-cancel-rename');
 const btnConfirmRename = document.getElementById('btn-confirm-rename');
 
 let soundEditMode = false;
-let currentRenamingSound = null;
+let bgmEditMode = false;
+let currentRenamingItem = null;
+let currentRenamingType = 'sound'; // 'sound' | 'bgm'
 
 const audioList = document.getElementById('audio-list');
 const mixerEmpty = document.getElementById('mixer-empty');
@@ -72,6 +114,47 @@ function haptic(ms = 25) {
       navigator.vibrate(ms);
     } catch (_) {}
   }
+}
+
+// Light Mode & Dark Mode Manager (YouTube / Instagram Themes)
+let currentTheme = localStorage.getItem('sd_theme') || 'dark';
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  localStorage.setItem('sd_theme', theme);
+
+  if (theme === 'light') {
+    document.documentElement.classList.add('light');
+    document.documentElement.classList.remove('dark');
+    if (themeIconSun) themeIconSun.classList.add('hidden');
+    if (themeIconMoon) themeIconMoon.classList.remove('hidden');
+    if (toggleLightmode) toggleLightmode.checked = true;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#ffffff');
+  } else {
+    document.documentElement.classList.remove('light');
+    document.documentElement.classList.add('dark');
+    if (themeIconSun) themeIconSun.classList.remove('hidden');
+    if (themeIconMoon) themeIconMoon.classList.add('hidden');
+    if (toggleLightmode) toggleLightmode.checked = false;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0f0f0f');
+  }
+}
+
+// Initialize theme immediately
+applyTheme(currentTheme);
+
+if (btnThemeToggle) {
+  btnThemeToggle.addEventListener('click', () => {
+    haptic(25);
+    applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+  });
+}
+
+if (toggleLightmode) {
+  toggleLightmode.addEventListener('change', (e) => {
+    haptic(25);
+    applyTheme(e.target.checked ? 'light' : 'dark');
+  });
 }
 
 // Wake Lock (Keep screen on)
@@ -220,6 +303,25 @@ backButtons.forEach((btn) => {
   });
 });
 
+// Audio Sub-Mode Switcher (Soundboard vs BGM Looper)
+if (btnModeSoundboard && btnModeBgm) {
+  btnModeSoundboard.addEventListener('click', () => {
+    haptic(25);
+    btnModeSoundboard.classList.add('active');
+    btnModeBgm.classList.remove('active');
+    sectionSoundboard.style.display = 'block';
+    sectionBgm.style.display = 'none';
+  });
+
+  btnModeBgm.addEventListener('click', () => {
+    haptic(25);
+    btnModeBgm.classList.add('active');
+    btnModeSoundboard.classList.remove('active');
+    sectionBgm.style.display = 'block';
+    sectionSoundboard.style.display = 'none';
+  });
+}
+
 // Update active tab indicator when user slides between Scenes and Soundboard
 let scrollDebounce = null;
 deckSlider.addEventListener('scroll', () => {
@@ -353,7 +455,7 @@ function renderSoundboard() {
         </svg>
       </div>
       <div class="deck-key-label">${sound.name}</div>
-      <span class="deck-key-badge" style="background: rgba(255,255,255,0.1); color: var(--text-dim);">${sound.extension}</span>
+      <span class="deck-key-badge">${sound.extension}</span>
     `;
 
     // Click handler for card
@@ -364,7 +466,7 @@ function renderSoundboard() {
 
       if (soundEditMode) {
         haptic(30);
-        openRenameModal(sound);
+        openRenameModal(sound, 'sound');
       } else {
         haptic(30);
         key.classList.add('sound-playing');
@@ -383,7 +485,7 @@ function renderSoundboard() {
         btnEdit.addEventListener('click', (e) => {
           e.stopPropagation();
           haptic(30);
-          openRenameModal(sound);
+          openRenameModal(sound, 'sound');
         });
       }
 
@@ -397,6 +499,140 @@ function renderSoundboard() {
     }
 
     soundsGrid.appendChild(key);
+  });
+}
+
+// Update BGM Top Status & Live Indicator
+function updateBgmUI() {
+  const bgmState = state.bgm.state || {};
+  const isPlaying = !!bgmState.isPlaying;
+  const isDucked = !!bgmState.isDucked;
+  const currentTrack = bgmState.currentTrack;
+
+  if (bgmStatusBar) {
+    bgmStatusBar.classList.toggle('is-playing', isPlaying);
+  }
+  if (bgmActiveDot) {
+    bgmActiveDot.style.display = isPlaying ? 'inline-block' : 'none';
+  }
+
+  if (isPlaying && currentTrack) {
+    const trackObj = (state.bgm.tracks || []).find((t) => t.filename === currentTrack);
+    const title = trackObj ? trackObj.name : currentTrack;
+    bgmCurrentTitle.textContent = `BGM: ${title}`;
+
+    if (isDucked) {
+      bgmStatusBadge.textContent = 'DUCKED';
+      bgmStatusBadge.className = 'bgm-badge badge-ducked';
+    } else {
+      bgmStatusBadge.textContent = 'LOOPING';
+      bgmStatusBadge.className = 'bgm-badge badge-looping';
+    }
+    btnStopBgm.style.display = 'inline-flex';
+  } else {
+    bgmCurrentTitle.textContent = 'BGM: Tidak Ada';
+    bgmStatusBadge.textContent = 'OFF';
+    bgmStatusBadge.className = 'bgm-badge';
+    btnStopBgm.style.display = 'none';
+  }
+
+  // Sync BGM slider
+  if (bgmState.baseVolume !== undefined && bgmVolSlider) {
+    bgmVolSlider.value = bgmState.baseVolume;
+    if (volBgmVal) {
+      volBgmVal.textContent = `${Math.round(bgmState.baseVolume * 100)}%`;
+    }
+  }
+}
+
+// Render BGM Grid
+function renderBgm() {
+  if (!bgmGrid) return;
+  bgmGrid.innerHTML = '';
+  const tracks = state.bgm.tracks || [];
+
+  if (tracks.length === 0) {
+    if (bgmEmpty) bgmEmpty.style.display = 'block';
+    return;
+  }
+  if (bgmEmpty) bgmEmpty.style.display = 'none';
+
+  tracks.forEach((track) => {
+    const isCurrentLooping = state.bgm.state.isPlaying && state.bgm.state.currentTrack === track.filename;
+    const key = document.createElement('div');
+    key.className = `deck-key bgm-key ${isCurrentLooping ? 'is-looping' : ''} ${bgmEditMode ? 'is-editing' : ''}`;
+    key.setAttribute('data-bgm', track.filename);
+
+    let toolsHtml = '';
+    if (bgmEditMode) {
+      toolsHtml = `
+        <div class="deck-key-edit-tools">
+          <button class="btn-key-tool btn-tool-edit" title="Edit Nama BGM">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+          <button class="btn-key-tool btn-tool-delete" title="Hapus BGM">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      `;
+    }
+
+    key.innerHTML = `
+      ${toolsHtml}
+      <div class="deck-key-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18V5l12-2v13"></path>
+          <circle cx="6" cy="18" r="3"></circle>
+          <circle cx="18" cy="16" r="3"></circle>
+        </svg>
+      </div>
+      <div class="deck-key-label">${track.name}</div>
+      <span class="deck-key-badge">${isCurrentLooping ? 'LOOPING' : track.extension}</span>
+    `;
+
+    key.addEventListener('click', (e) => {
+      if (isSwiping) return;
+      if (e.target.closest('.btn-key-tool')) return;
+
+      if (bgmEditMode) {
+        haptic(30);
+        openRenameModal(track, 'bgm');
+      } else {
+        haptic(35);
+        if (isCurrentLooping) {
+          socket.emit('bgm:stop');
+        } else {
+          socket.emit('bgm:play', track.filename);
+        }
+      }
+    });
+
+    if (bgmEditMode) {
+      const btnEdit = key.querySelector('.btn-tool-edit');
+      const btnDelete = key.querySelector('.btn-tool-delete');
+      if (btnEdit) {
+        btnEdit.addEventListener('click', (e) => {
+          e.stopPropagation();
+          haptic(30);
+          openRenameModal(track, 'bgm');
+        });
+      }
+      if (btnDelete) {
+        btnDelete.addEventListener('click', (e) => {
+          e.stopPropagation();
+          haptic(40);
+          deleteBgm(track);
+        });
+      }
+    }
+
+    bgmGrid.appendChild(key);
   });
 }
 
@@ -417,7 +653,7 @@ function renderMixer() {
 
     item.innerHTML = `
       <div class="audio-item-info">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" style="color: ${input.muted ? 'var(--accent-red)' : 'var(--accent-blue)'}">
+        <svg viewBox="0 0 24 24" class="w-5 h-5 flex-shrink-0 ${input.muted ? 'text-red-400' : 'text-neutral-300'}" fill="none" stroke="currentColor" stroke-width="2">
           ${input.muted
             ? '<line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line>'
             : '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line>'
@@ -476,10 +712,22 @@ btnRefreshScenes.addEventListener('click', () => {
   socket.emit('obs:refresh');
 });
 
-// Soundboard Controls
+// Soundboard & BGM Volume Controls
 soundboardVol.addEventListener('input', (e) => {
   const pct = Math.round(e.target.value * 100);
-  volValue.textContent = `${pct}%`;
+  if (volSfxVal) volSfxVal.textContent = `${pct}%`;
+});
+
+bgmVolSlider.addEventListener('input', (e) => {
+  const vol = parseFloat(e.target.value);
+  const pct = Math.round(vol * 100);
+  if (volBgmVal) volBgmVal.textContent = `${pct}%`;
+  socket.emit('bgm:volume', vol);
+});
+
+btnStopBgm.addEventListener('click', () => {
+  haptic(40);
+  socket.emit('bgm:stop');
 });
 
 btnStopAll.addEventListener('click', () => {
@@ -533,9 +781,58 @@ soundFileInput.addEventListener('change', async (e) => {
   }
 });
 
-function openRenameModal(sound) {
-  currentRenamingSound = sound;
-  renameInput.value = sound.name;
+// BGM Management Handlers
+btnManageBgm.addEventListener('click', () => {
+  haptic(30);
+  bgmEditMode = !bgmEditMode;
+  btnManageBgm.classList.toggle('active', bgmEditMode);
+  manageBgmLabel.textContent = bgmEditMode ? 'Selesai' : 'Kelola BGM';
+  renderBgm();
+});
+
+btnUploadBgm.addEventListener('click', () => {
+  haptic(30);
+  bgmFileInput.click();
+});
+
+bgmFileInput.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const originalBtnText = btnUploadBgm.innerHTML;
+  btnUploadBgm.disabled = true;
+  btnUploadBgm.textContent = 'Mengunggah...';
+
+  const formData = new FormData();
+  formData.append('audio', file);
+
+  try {
+    const res = await fetch('/api/bgm/upload', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`Gagal upload BGM: ${data.error || 'Terjadi kesalahan'}`);
+    } else {
+      bgmFileInput.value = '';
+    }
+  } catch (err) {
+    alert(`Error upload BGM: ${err.message}`);
+  } finally {
+    btnUploadBgm.disabled = false;
+    btnUploadBgm.innerHTML = originalBtnText;
+  }
+});
+
+function openRenameModal(item, type = 'sound') {
+  currentRenamingItem = item;
+  currentRenamingType = type;
+  renameInput.value = item.name;
+  const modalTitle = renameModal.querySelector('.modal-title');
+  if (modalTitle) {
+    modalTitle.textContent = type === 'bgm' ? 'Ganti Nama BGM' : 'Ganti Nama Sound';
+  }
   renameModal.style.display = 'flex';
   setTimeout(() => {
     renameInput.focus();
@@ -544,7 +841,7 @@ function openRenameModal(sound) {
 }
 
 function closeRenameModal() {
-  currentRenamingSound = null;
+  currentRenamingItem = null;
   renameModal.style.display = 'none';
 }
 
@@ -561,16 +858,20 @@ btnConfirmRename.addEventListener('click', async () => {
   haptic();
   const newName = renameInput.value.trim();
   if (!newName) {
-    alert('Nama sound tidak boleh kosong.');
+    alert('Nama tidak boleh kosong.');
     return;
   }
-  if (!currentRenamingSound) return;
+  if (!currentRenamingItem) return;
 
   btnConfirmRename.disabled = true;
   btnConfirmRename.textContent = 'Menyimpan...';
 
+  const endpoint = currentRenamingType === 'bgm'
+    ? `/api/bgm/${encodeURIComponent(currentRenamingItem.filename)}`
+    : `/api/sounds/${encodeURIComponent(currentRenamingItem.filename)}`;
+
   try {
-    const res = await fetch(`/api/sounds/${encodeURIComponent(currentRenamingSound.filename)}`, {
+    const res = await fetch(endpoint, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName })
@@ -615,6 +916,24 @@ async function deleteSound(sound) {
   }
 }
 
+async function deleteBgm(track) {
+  if (!confirm(`Hapus BGM "${track.name}"? File ini akan dihapus secara permanen.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/bgm/${encodeURIComponent(track.filename)}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`Gagal menghapus BGM: ${data.error || 'Terjadi kesalahan'}`);
+    }
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+  }
+}
+
 // Settings Form Handlers
 btnSaveObs.addEventListener('click', async () => {
   haptic();
@@ -647,20 +966,30 @@ btnSaveObs.addEventListener('click', async () => {
 socket.on('init:state', (data) => {
   if (data.obs) state.obs = { ...state.obs, ...data.obs };
   if (data.sounds) state.sounds = data.sounds;
+  if (data.bgm) {
+    if (data.bgm.tracks) state.bgm.tracks = data.bgm.tracks;
+    if (data.bgm.state) state.bgm.state = data.bgm.state;
+  }
   if (data.config) {
     state.config = data.config;
     obsHostInput.value = data.config.obs?.host || '127.0.0.1';
     obsPortInput.value = data.config.obs?.port || 4455;
     obsPasswordInput.value = data.config.obs?.password || '';
-    if (data.config.soundboard?.volume !== undefined) {
+    if (data.config.soundboard?.volume !== undefined && soundboardVol) {
       soundboardVol.value = data.config.soundboard.volume;
-      volValue.textContent = `${Math.round(data.config.soundboard.volume * 100)}%`;
+      if (volSfxVal) volSfxVal.textContent = `${Math.round(data.config.soundboard.volume * 100)}%`;
+    }
+    if (data.config.bgm?.volume !== undefined && bgmVolSlider) {
+      bgmVolSlider.value = data.config.bgm.volume;
+      if (volBgmVal) volBgmVal.textContent = `${Math.round(data.config.bgm.volume * 100)}%`;
     }
   }
 
   updateObsStatusUI();
+  updateBgmUI();
   renderScenes();
   renderSoundboard();
+  renderBgm();
   renderMixer();
 });
 
@@ -726,4 +1055,17 @@ socket.on('sound:stopped', () => {
 socket.on('sounds:updated', (sounds) => {
   state.sounds = sounds;
   renderSoundboard();
+});
+
+socket.on('bgm:state', (bgmState) => {
+  state.bgm.state = bgmState;
+  updateBgmUI();
+  renderBgm();
+});
+
+socket.on('bgm:updated', (data) => {
+  if (data.tracks) state.bgm.tracks = data.tracks;
+  if (data.state) state.bgm.state = data.state;
+  updateBgmUI();
+  renderBgm();
 });
