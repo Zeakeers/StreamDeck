@@ -37,6 +37,10 @@ if %errorlevel% neq 0 (
   exit /b %errorlevel%
 )
 
+echo.
+echo Pre-syncing media assets from server (%SERVER_URL%)...
+call node "%~dp0bin\player.js" "%SERVER_URL%" --sync-only
+
 :: Create background runner script in project folder (inactive)
 set "VBS_FILE=%~dp0start-player.vbs"
 (

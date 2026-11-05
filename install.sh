@@ -26,6 +26,11 @@ npm install
 echo "Linking global commands..."
 npm link
 
+# Pre-sync audio files right during installation so user has zero lag
+echo ""
+echo "Pre-syncing media assets from server ($SERVER_URL)..."
+node bin/player.js "$SERVER_URL" --sync-only || true
+
 # Install systemd user service unit (inactive by default)
 if command -v systemctl >/dev/null 2>&1; then
   SERVICE_DIR="$HOME/.config/systemd/user"
