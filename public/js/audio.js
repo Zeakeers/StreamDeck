@@ -78,3 +78,32 @@ export function syncClientBgm(bgmState) {
     }
   }
 }
+
+export function playBgmDirect(trackFilename, volume = 0.5) {
+  if (!clientAudioEnabled || !trackFilename) return;
+  const trackUrl = `/bgm/${encodeURIComponent(trackFilename)}`;
+  const targetVol = Math.max(0, Math.min(1, volume));
+
+  if (!clientBgmAudio || clientBgmAudio.getAttribute('data-track') !== trackFilename) {
+    if (clientBgmAudio) {
+      clientBgmAudio.pause();
+    }
+    clientBgmAudio = new Audio(trackUrl);
+    clientBgmAudio.setAttribute('data-track', trackFilename);
+    clientBgmAudio.loop = true;
+    clientBgmAudio.volume = targetVol;
+    clientBgmAudio.play().catch((err) => {
+      console.warn('[BGM] Direct play error:', err.message);
+    });
+  } else if (clientBgmAudio.paused) {
+    clientBgmAudio.volume = targetVol;
+    clientBgmAudio.play().catch(() => {});
+  }
+}
+
+export function stopBgmDirect() {
+  if (clientBgmAudio) {
+    clientBgmAudio.pause();
+    clientBgmAudio = null;
+  }
+}

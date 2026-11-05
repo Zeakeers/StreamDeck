@@ -1,4 +1,5 @@
 import { state, haptic } from './state.js';
+import { playBgmDirect, stopBgmDirect } from './audio.js';
 
 export let isSwiping = false;
 export function setSwiping(val) { isSwiping = val; }
@@ -399,21 +400,40 @@ export function renderBgm() {
       <span class="deck-key-badge">${isCurrentLooping ? 'LOOPING' : track.extension}</span>
     `;
 
-    key.addEventListener('click', (e) => {
-      if (isSwiping) return;
-      if (e.target.closest('.btn-key-tool')) return;
+    let triggeredByPointer = false;
+    key.addEventListener('pointerdown', (e) => {
+      if (isSwiping || bgmEditMode || e.target.closest('.btn-key-tool')) return;
+      triggeredByPointer = true;
+      haptic(35);
+      if (isCurrentLooping) {
+        stopBgmDirect();
+        if (socketRef) socketRef.emit('bgm:stop');
+      } else {
+        const bgmVolSlider = document.getElementById('bgm-vol');
+        const vol = parseFloat(bgmVolSlider?.value) || 0.5;
+        playBgmDirect(track.filename, vol);
+        if (socketRef) socketRef.emit('bgm:play', track.filename);
+      }
+    });
 
+    key.addEventListener('click', (e) => {
+      if (isSwiping || e.target.closest('.btn-key-tool')) return;
       if (bgmEditMode) {
         haptic(30);
         openRenameModal(track, 'bgm');
-      } else {
+      } else if (!triggeredByPointer) {
         haptic(35);
         if (isCurrentLooping) {
+          stopBgmDirect();
           if (socketRef) socketRef.emit('bgm:stop');
         } else {
+          const bgmVolSlider = document.getElementById('bgm-vol');
+          const vol = parseFloat(bgmVolSlider?.value) || 0.5;
+          playBgmDirect(track.filename, vol);
           if (socketRef) socketRef.emit('bgm:play', track.filename);
         }
       }
+      triggeredByPointer = false;
     });
 
     if (bgmEditMode) {

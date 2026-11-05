@@ -8,7 +8,8 @@ import {
 } from './state.js';
 import {
   isClientAudioEnabled,
-  setClientAudioEnabled
+  setClientAudioEnabled,
+  stopBgmDirect
 } from './audio.js';
 import {
   setSwiping,
@@ -135,9 +136,13 @@ if (deckSlider) {
       const scrollPos = deckSlider.scrollLeft;
       const width = deckSlider.clientWidth;
       const targetIndex = Math.round(scrollPos / width);
-      tabButtons.forEach((b, idx) => {
-        if (idx === 0 || idx === 1) {
-          b.classList.toggle('active', idx === targetIndex);
+      tabButtons.forEach((b) => {
+        const name = b.getAttribute('data-tab');
+        if (targetIndex === 0) {
+          b.classList.toggle('active', name === 'tab-scenes');
+        } else {
+          const isBgm = sectionBgm && sectionBgm.style.display !== 'none';
+          b.classList.toggle('active', isBgm ? name === 'tab-bgm' : name === 'tab-sounds');
         }
       });
     }, 50);
@@ -154,22 +159,40 @@ function showStandaloneView(targetView) {
   if (targetView === 'deck' && viewDeck) viewDeck.style.display = 'flex';
 }
 
+function switchSubMode(mode) {
+  if (mode === 'bgm') {
+    if (btnModeBgm) btnModeBgm.classList.add('active');
+    if (btnModeSoundboard) btnModeSoundboard.classList.remove('active');
+    if (sectionSoundboard) sectionSoundboard.style.display = 'none';
+    if (sectionBgm) sectionBgm.style.display = 'block';
+    tabButtons.forEach((b) => b.classList.toggle('active', b.getAttribute('data-tab') === 'tab-bgm'));
+  } else {
+    if (btnModeSoundboard) btnModeSoundboard.classList.add('active');
+    if (btnModeBgm) btnModeBgm.classList.remove('active');
+    if (sectionSoundboard) sectionSoundboard.style.display = 'block';
+    if (sectionBgm) sectionBgm.style.display = 'none';
+    tabButtons.forEach((b) => b.classList.toggle('active', b.getAttribute('data-tab') === 'tab-sounds'));
+  }
+}
+
 tabButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
     haptic();
-    const tabName = btn.getAttribute('data-tab');
+    const tabName = (btn.getAttribute('data-tab') || '').replace(/^tab-/, '');
 
-    if (tabName === 'scenes' || tabName === 'soundboard') {
+    if (tabName === 'scenes') {
       showStandaloneView('deck');
       tabButtons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      const targetIndex = tabName === 'scenes' ? 0 : 1;
-      if (deckSlider) {
-        deckSlider.scrollTo({
-          left: targetIndex * deckSlider.clientWidth,
-          behavior: 'smooth'
-        });
-      }
+      if (deckSlider) deckSlider.scrollTo({ left: 0, behavior: 'smooth' });
+    } else if (tabName === 'sounds' || tabName === 'soundboard') {
+      showStandaloneView('deck');
+      switchSubMode('soundboard');
+      if (deckSlider) deckSlider.scrollTo({ left: deckSlider.clientWidth, behavior: 'smooth' });
+    } else if (tabName === 'bgm') {
+      showStandaloneView('deck');
+      switchSubMode('bgm');
+      if (deckSlider) deckSlider.scrollTo({ left: deckSlider.clientWidth, behavior: 'smooth' });
     } else if (tabName === 'mixer') {
       tabButtons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
@@ -200,20 +223,24 @@ const sectionSoundboard = document.getElementById('section-soundboard');
 const sectionBgm = document.getElementById('section-bgm');
 
 if (btnModeSoundboard && btnModeBgm) {
+  btnModeSoundboard.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    haptic(25);
+    switchSubMode('soundboard');
+  });
   btnModeSoundboard.addEventListener('click', () => {
     haptic(25);
-    btnModeSoundboard.classList.add('active');
-    btnModeBgm.classList.remove('active');
-    if (sectionSoundboard) sectionSoundboard.style.display = 'block';
-    if (sectionBgm) sectionBgm.style.display = 'none';
+    switchSubMode('soundboard');
   });
 
+  btnModeBgm.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    haptic(25);
+    switchSubMode('bgm');
+  });
   btnModeBgm.addEventListener('click', () => {
     haptic(25);
-    btnModeBgm.classList.add('active');
-    btnModeSoundboard.classList.remove('active');
-    if (sectionSoundboard) sectionSoundboard.style.display = 'none';
-    if (sectionBgm) sectionBgm.style.display = 'block';
+    switchSubMode('bgm');
   });
 }
 
@@ -287,6 +314,7 @@ if (bgmVolSlider) {
 if (btnStopBgm) {
   btnStopBgm.addEventListener('click', () => {
     haptic(40);
+    stopBgmDirect();
     socket.emit('bgm:stop');
   });
 }

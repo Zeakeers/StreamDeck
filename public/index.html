@@ -113,7 +113,17 @@
         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
         <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
       </svg>
-      <span>Soundboard & BGM</span>
+      <span>Soundboard</span>
+    </button>
+
+    <button class="tab-btn px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap active:scale-95" data-tab="tab-bgm">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M9 18V5l12-2v13"></path>
+        <circle cx="6" cy="18" r="3"></circle>
+        <circle cx="18" cy="16" r="3"></circle>
+      </svg>
+      <span>BGM Looper</span>
+      <span class="bgm-indicator-dot w-1.5 h-1.5 rounded-full bg-emerald-500" style="display: none;"></span>
     </button>
 
     <button class="tab-btn px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap active:scale-95" data-tab="tab-mixer">
