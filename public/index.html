@@ -392,16 +392,13 @@
           Preferensi Tampilan
         </h3>
 
-        <!-- Client Audio Output Toggle -->
+        <!-- Audio Output Routing Notice -->
         <div class="flex items-center justify-between py-2.5 border-b border-[var(--app-border)]">
           <div>
-            <div class="text-xs font-bold text-[var(--app-text)]">Putar Suara di Browser Ini</div>
-            <div class="text-[0.7rem] text-[var(--app-text-dim)]">Bunyikan soundboard & BGM langsung di HP/laptop ini</div>
+            <div class="text-xs font-bold text-[var(--app-text)]">Output Audio</div>
+            <div class="text-[0.7rem] text-[var(--app-text-dim)]">Audio diputar khusus via CLI daemon (streamdeck-player)</div>
           </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="toggle-client-audio" checked class="sr-only peer">
-            <div class="w-9 h-5 bg-[#333333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-          </label>
+          <span class="text-[0.65rem] px-2 py-0.5 rounded bg-[var(--app-card)] border border-[var(--app-border)] text-[var(--app-text-dim)] font-mono font-bold">CLI ONLY</span>
         </div>
 
         <!-- Light Mode Toggle Switch -->

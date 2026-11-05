@@ -6,11 +6,7 @@ import {
   requestWakeLock,
   releaseWakeLock
 } from './state.js';
-import {
-  isClientAudioEnabled,
-  setClientAudioEnabled,
-  stopBgmDirect
-} from './audio.js';
+import { stopBgmDirect } from './audio.js';
 import {
   setSwiping,
   soundEditMode,
@@ -89,14 +85,6 @@ if (toggleVibrate) {
   });
 }
 
-// --- Client Audio Toggle ---
-const toggleClientAudio = document.getElementById('toggle-client-audio');
-if (toggleClientAudio) {
-  toggleClientAudio.checked = isClientAudioEnabled();
-  toggleClientAudio.addEventListener('change', (e) => {
-    setClientAudioEnabled(e.target.checked);
-  });
-}
 
 // --- Tab Navigation & Deck Slider ---
 const deckSlider = document.getElementById('deck-slider');
