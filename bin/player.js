@@ -15,6 +15,9 @@ const serverUrl = process.env.STREAMDECK_SERVER || process.argv[2] || 'http://10
 const soundsDir = path.join(rootDir, 'sounds');
 const bgmDir = path.join(rootDir, 'bgm');
 
+const localSounds = new Set(fs.existsSync(soundsDir) ? fs.readdirSync(soundsDir) : []);
+const localBgm = new Set(fs.existsSync(bgmDir) ? fs.readdirSync(bgmDir) : []);
+
 const audio = new AudioManager(soundsDir);
 const bgm = new BgmManager(bgmDir);
 audio.setBgmManager(bgm);
@@ -57,12 +60,13 @@ console.log('='.repeat(54));
 
 const socket = io(serverUrl, {
   reconnection: true,
-  reconnectionDelay: 2000
+  reconnectionDelay: 1000,
+  transports: ['websocket'] // Force WebSocket transport (skip polling negotiation, saves ~150ms handshake)
 });
 
 socket.on('connect', () => {
   console.log(`[Audio Daemon] Connected to ${serverUrl} (Socket ID: ${socket.id})`);
-  console.log('[Audio Daemon] Ready. Audio will play through local speakers when triggered from cloud.\n');
+  console.log('[Audio Daemon] Ready. Zero-latency in-memory cache enabled.\n');
 });
 
 socket.on('disconnect', (reason) => {
@@ -73,35 +77,42 @@ socket.on('connect_error', (err) => {
   console.error(`[Audio Daemon] Connection error: ${err.message}`);
 });
 
-socket.on('sound:started', async (data) => {
+socket.on('sound:started', (data) => {
   if (!data?.filename) return;
   const vol = typeof data.volume === 'number' ? data.volume : 0.8;
-  console.log(`[Audio Daemon] Play SFX: ${data.filename} (Vol: ${Math.round(vol * 100)}%)`);
-
-  await downloadIfMissing(soundsDir, data.filename, 'sounds');
-  try {
-    await audio.play(data.filename, vol);
-  } catch (err) {
-    console.error(`[Audio Daemon] Failed to play ${data.filename}:`, err.message);
+  console.log(`[Audio Daemon] ${new Date().toISOString()} -> Play SFX: ${data.filename} (Vol: ${Math.round(vol * 100)}%)`);
+  if (localSounds.has(data.filename)) {
+    // Instant zero-delay memory playback (<1ms)
+    audio.play(data.filename, vol).catch(console.error);
+    return;
   }
+
+  downloadIfMissing(soundsDir, data.filename, 'sounds').then((fullPath) => {
+    if (fullPath) {
+      localSounds.add(data.filename);
+      audio.play(data.filename, vol).catch(console.error);
+    }
+  });
 });
 
 socket.on('sound:stopped', () => {
-  console.log('[Audio Daemon] Stop all SFX');
   audio.stopAll();
 });
 
-socket.on('bgm:state', async (state) => {
+socket.on('bgm:state', (state) => {
   if (!state) return;
 
   if (state.isPlaying && state.currentTrack) {
     if (bgm.currentTrack !== state.currentTrack) {
-      console.log(`[Audio Daemon] Play BGM: ${state.currentTrack}`);
-      await downloadIfMissing(bgmDir, state.currentTrack, 'bgm');
-      try {
-        await bgm.play(state.currentTrack);
-      } catch (err) {
-        console.error(`[Audio Daemon] Failed BGM play:`, err.message);
+      if (localBgm.has(state.currentTrack)) {
+        bgm.play(state.currentTrack).catch(console.error);
+      } else {
+        downloadIfMissing(bgmDir, state.currentTrack, 'bgm').then((fullPath) => {
+          if (fullPath) {
+            localBgm.add(state.currentTrack);
+            bgm.play(state.currentTrack).catch(console.error);
+          }
+        });
       }
     }
 
@@ -112,13 +123,11 @@ socket.on('bgm:state', async (state) => {
       bgm.setVolume(targetVol);
     }
   } else if (!state.isPlaying && bgm.isPlaying) {
-    console.log('[Audio Daemon] Stop BGM');
     bgm.stop();
   }
 });
 
 process.on('SIGINT', () => {
-  console.log('\n[Audio Daemon] Stopping audio...');
   audio.stopAll();
   bgm.stop();
   socket.close();

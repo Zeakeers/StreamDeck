@@ -395,17 +395,16 @@ io.on('connection', (socket) => {
     try {
       const filename = typeof data === 'string' ? data : data?.filename;
       const volume = typeof data === 'object' && data?.volume !== undefined ? data.volume : config.soundboard.volume;
-      try {
-        await audioManager.play(filename, volume);
-      } catch (playErr) {
-        console.warn('[Audio] Host playback skipped:', playErr.message);
-      }
+      // Immediate broadcast to all clients (<0.5ms)
       io.emit('sound:started', {
         filename,
         volume,
         url: `/sounds/${encodeURIComponent(filename)}`
       });
       if (typeof callback === 'function') callback({ success: true });
+
+      // Non-blocking server host playback
+      audioManager.play(filename, volume).catch(() => {});
     } catch (err) {
       if (typeof callback === 'function') callback({ error: err.message });
     }

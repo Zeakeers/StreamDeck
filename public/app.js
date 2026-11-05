@@ -415,7 +415,7 @@ function renderScenes() {
       ${isActive ? '<span class="deck-key-badge">ACTIVE</span>' : ''}
     `;
 
-    key.addEventListener('click', () => {
+    key.addEventListener('pointerdown', () => {
       if (isSwiping) return;
       haptic(35);
       socket.emit('obs:scene', sceneName);
@@ -473,23 +473,29 @@ function renderSoundboard() {
       <span class="deck-key-badge">${sound.extension}</span>
     `;
 
-    // Click handler for card
-    key.addEventListener('click', (e) => {
-      if (isSwiping) return;
-      // If clicked tool buttons, don't trigger sound
-      if (e.target.closest('.btn-key-tool')) return;
+    let triggeredByPointer = false;
+    key.addEventListener('pointerdown', (e) => {
+      if (isSwiping || soundEditMode || e.target.closest('.btn-key-tool')) return;
+      triggeredByPointer = true;
+      haptic(30);
+      key.classList.add('sound-playing');
+      setTimeout(() => key.classList.remove('sound-playing'), 450);
 
+      const vol = parseFloat(soundboardVol.value) || 0.8;
+      socket.emit('sound:play', { filename: sound.filename, volume: vol });
+    });
+
+    key.addEventListener('click', (e) => {
+      if (isSwiping || e.target.closest('.btn-key-tool')) return;
       if (soundEditMode) {
         haptic(30);
         openRenameModal(sound, 'sound');
-      } else {
+      } else if (!triggeredByPointer) {
         haptic(30);
-        key.classList.add('sound-playing');
-        setTimeout(() => key.classList.remove('sound-playing'), 450);
-
         const vol = parseFloat(soundboardVol.value) || 0.8;
         socket.emit('sound:play', { filename: sound.filename, volume: vol });
       }
+      triggeredByPointer = false;
     });
 
     if (soundEditMode) {
