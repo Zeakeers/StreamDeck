@@ -5,4 +5,4 @@ const path = require('path');
 const rootDir = path.resolve(__dirname, '..');
 process.chdir(rootDir);
 
-require('../server.js');
+require('../src/main.js');

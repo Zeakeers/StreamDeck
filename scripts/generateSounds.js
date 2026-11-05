@@ -30,7 +30,7 @@ function createWavBuffer(samples, sampleRate = 44100) {
   return buffer;
 }
 
-const soundsDir = path.join(__dirname, '..', 'sounds');
+const soundsDir = path.join(__dirname, '..', 'media', 'sounds');
 
 // 1. Coin sound (8-bit style)
 {

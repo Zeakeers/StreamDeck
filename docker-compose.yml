@@ -1,0 +1,10 @@
+services:
+  streamdeck:
+    build: .
+    container_name: streamdeck
+    restart: unless-stopped
+    ports:
+      - "${STREAMDECK_PORT:-3001}:3000"
+    volumes:
+      - ./media/sounds:/app/media/sounds
+      - ./media/bgm:/app/media/bgm

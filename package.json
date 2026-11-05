@@ -1,15 +1,17 @@
 {
   "name": "streamdeck",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/main.js",
   "bin": {
     "streamdeck": "./bin/streamdeck.js"
   },
   "scripts": {
-    "start": "node server.js",
-    "build:css": "tailwindcss -i ./src/input.css -o ./public/tailwind.css --minify",
+    "start": "node src/main.js",
+    "player": "node bin/player.js",
+    "build:css": "tailwindcss -i ./src/styles/app.css -o ./public/css/app.css --minify",
+    "setup:media": "node scripts/generateSounds.js && node scripts/generateBgm.js",
     "gen-sounds": "node scripts/generateSounds.js",
-    "test": "echo \"No tests\" && exit 0"
+    "test": "node test/audioManager.test.js"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +23,7 @@
     "obs-websocket-js": "^5.0.8",
     "qrcode-terminal": "^0.12.0",
     "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4",
     "sound-play": "^1.1.0"
   },
   "devDependencies": {

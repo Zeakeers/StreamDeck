@@ -1,3 +1,9 @@
 node_modules/
 .DS_Store
 Thumbs.db
+media/sounds/*
+!media/sounds/.gitkeep
+media/bgm/*
+!media/bgm/.gitkeep
+config/runtime.json
+config.json

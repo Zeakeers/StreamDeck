@@ -9,7 +9,7 @@
   <title>Stream Deck</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="tailwind.css">
+  <link rel="stylesheet" href="css/app.css">
 </head>
 <body class="flex flex-col h-full overflow-hidden select-none">
 
@@ -113,7 +113,17 @@
         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
         <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
       </svg>
-      <span>Soundboard & BGM</span>
+      <span>Soundboard</span>
+    </button>
+
+    <button class="tab-btn px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap active:scale-95" data-tab="tab-bgm">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M9 18V5l12-2v13"></path>
+        <circle cx="6" cy="18" r="3"></circle>
+        <circle cx="18" cy="16" r="3"></circle>
+      </svg>
+      <span>BGM Looper</span>
+      <span class="bgm-indicator-dot w-1.5 h-1.5 rounded-full bg-emerald-500" style="display: none;"></span>
     </button>
 
     <button class="tab-btn px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap active:scale-95" data-tab="tab-mixer">
@@ -382,6 +392,18 @@
           Preferensi Tampilan
         </h3>
 
+        <!-- Client Audio Output Toggle -->
+        <div class="flex items-center justify-between py-2.5 border-b border-[var(--app-border)]">
+          <div>
+            <div class="text-xs font-bold text-[var(--app-text)]">Putar Suara di Browser Ini</div>
+            <div class="text-[0.7rem] text-[var(--app-text-dim)]">Bunyikan soundboard & BGM langsung di HP/laptop ini</div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="toggle-client-audio" checked class="sr-only peer">
+            <div class="w-9 h-5 bg-[#333333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+          </label>
+        </div>
+
         <!-- Light Mode Toggle Switch -->
         <div class="flex items-center justify-between py-2.5 border-b border-[var(--app-border)]">
           <div>
@@ -438,6 +460,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
