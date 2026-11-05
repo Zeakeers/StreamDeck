@@ -6,6 +6,5 @@ services:
     ports:
       - "${STREAMDECK_PORT:-3001}:3000"
     volumes:
-      - ./config:/app/config
       - ./media/sounds:/app/media/sounds
       - ./media/bgm:/app/media/bgm

@@ -1,14 +1,35 @@
 const fs = require('fs');
 const path = require('path');
 
-const CONFIG_DIR = path.resolve(__dirname, '../../config');
-const DEFAULT_PATH = path.join(CONFIG_DIR, 'default.json');
-const RUNTIME_PATH = path.join(CONFIG_DIR, 'runtime.json');
+const DEFAULT_CONFIG = {
+  server: {
+    port: 3000
+  },
+  obs: {
+    host: '127.0.0.1',
+    port: 4455,
+    password: '',
+    autoConnect: true
+  },
+  soundboard: {
+    volume: 0.8
+  },
+  bgm: {
+    volume: 0.5
+  }
+};
 
+const RUNTIME_PATH = path.resolve(__dirname, '../../config/runtime.json');
 let cachedConfig = null;
 
 function loadConfig() {
-  const defaults = JSON.parse(fs.readFileSync(DEFAULT_PATH, 'utf8'));
+  const defaults = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+
+  if (process.env.PORT) defaults.server.port = parseInt(process.env.PORT, 10) || 3000;
+  if (process.env.OBS_HOST) defaults.obs.host = process.env.OBS_HOST;
+  if (process.env.OBS_PORT) defaults.obs.port = parseInt(process.env.OBS_PORT, 10) || 4455;
+  if (process.env.OBS_PASSWORD !== undefined) defaults.obs.password = process.env.OBS_PASSWORD;
+
   if (fs.existsSync(RUNTIME_PATH)) {
     try {
       const runtime = JSON.parse(fs.readFileSync(RUNTIME_PATH, 'utf8'));
@@ -34,8 +55,13 @@ function getConfig() {
 
 function saveConfig(cfg) {
   cachedConfig = cfg;
-  if (!fs.existsSync(CONFIG_DIR)) fs.mkdirSync(CONFIG_DIR, { recursive: true });
-  fs.writeFileSync(RUNTIME_PATH, JSON.stringify(cfg, null, 2), 'utf8');
+  try {
+    const dir = path.dirname(RUNTIME_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(RUNTIME_PATH, JSON.stringify(cfg, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('[Config] Runtime config not saved to disk (in-memory only):', err.message);
+  }
 }
 
 function updateConfig(partial) {
@@ -53,6 +79,7 @@ function updateConfig(partial) {
 }
 
 module.exports = {
+  DEFAULT_CONFIG,
   getConfig,
   saveConfig,
   updateConfig
