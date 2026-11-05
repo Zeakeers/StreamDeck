@@ -358,7 +358,7 @@ export function updateBgmUI() {
     if (btnStopBgm) btnStopBgm.style.display = 'none';
   }
 
-  if (bgmState.baseVolume !== undefined && bgmVolSlider) {
+  if (bgmState.baseVolume !== undefined && bgmVolSlider && document.activeElement !== bgmVolSlider) {
     bgmVolSlider.value = bgmState.baseVolume;
     if (volBgmVal) volBgmVal.textContent = `${Math.round(bgmState.baseVolume * 100)}%`;
   }
@@ -430,7 +430,7 @@ export function renderBgm() {
           const bgmVolSlider = document.getElementById('bgm-vol');
           const vol = parseFloat(bgmVolSlider?.value) || 0.5;
           playBgmDirect(track.filename, vol);
-          if (socketRef) socketRef.emit('bgm:play', track.filename);
+          if (socketRef) socketRef.emit('bgm:play', { filename: track.filename, volume: vol });
         }
       }
     });

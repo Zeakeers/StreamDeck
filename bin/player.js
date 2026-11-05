@@ -102,7 +102,12 @@ socket.on('sound:stopped', () => {
 socket.on('bgm:state', (state) => {
   if (!state) return;
 
+  const targetVol = typeof state.currentVolume === 'number'
+    ? state.currentVolume
+    : (typeof state.baseVolume === 'number' ? state.baseVolume : 0.5);
+
   if (state.isPlaying && state.currentTrack) {
+    bgm.baseVolume = targetVol;
     if (bgm.currentTrack !== state.currentTrack) {
       if (localBgm.has(state.currentTrack)) {
         bgm.play(state.currentTrack).catch(console.error);
@@ -116,7 +121,6 @@ socket.on('bgm:state', (state) => {
       }
     }
 
-    const targetVol = state.currentVolume ?? state.baseVolume ?? 0.5;
     if (state.isDucked) {
       bgm.duck();
     } else {

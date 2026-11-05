@@ -284,11 +284,15 @@ if (soundboardVol) {
 }
 
 if (bgmVolSlider) {
+  let bgmVolDebounce = null;
   bgmVolSlider.addEventListener('input', (e) => {
     const vol = parseFloat(e.target.value);
     const pct = Math.round(vol * 100);
     if (volBgmVal) volBgmVal.textContent = `${pct}%`;
-    socket.emit('bgm:volume', vol);
+    clearTimeout(bgmVolDebounce);
+    bgmVolDebounce = setTimeout(() => {
+      socket.emit('bgm:volume', vol);
+    }, 35);
   });
 }
 
