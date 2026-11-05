@@ -394,9 +394,17 @@ io.on('connection', (socket) => {
   socket.on('sound:play', async (data, callback) => {
     try {
       const filename = typeof data === 'string' ? data : data?.filename;
-      const volume = typeof data === 'object' && data?.volume ? data.volume : config.soundboard.volume;
-      await audioManager.play(filename, volume);
-      io.emit('sound:started', { filename });
+      const volume = typeof data === 'object' && data?.volume !== undefined ? data.volume : config.soundboard.volume;
+      try {
+        await audioManager.play(filename, volume);
+      } catch (playErr) {
+        console.warn('[Audio] Host playback skipped:', playErr.message);
+      }
+      io.emit('sound:started', {
+        filename,
+        volume,
+        url: `/sounds/${encodeURIComponent(filename)}`
+      });
       if (typeof callback === 'function') callback({ success: true });
     } catch (err) {
       if (typeof callback === 'function') callback({ error: err.message });
@@ -412,7 +420,15 @@ io.on('connection', (socket) => {
 
   socket.on('bgm:play', async (filename, callback) => {
     try {
-      const state = await bgmManager.play(filename);
+      let state;
+      try {
+        state = await bgmManager.play(filename);
+      } catch (bgmErr) {
+        console.warn('[BGM] Host playback skipped:', bgmErr.message);
+        bgmManager.currentTrack = filename;
+        bgmManager.isPlaying = true;
+        state = bgmManager.getState();
+      }
       io.emit('bgm:state', state);
       if (typeof callback === 'function') callback({ success: true, state });
     } catch (err) {

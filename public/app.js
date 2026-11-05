@@ -43,6 +43,21 @@ const themeIconSun = document.getElementById('theme-icon-sun');
 const themeIconMoon = document.getElementById('theme-icon-moon');
 const toggleLightmode = document.getElementById('toggle-lightmode');
 
+let clientAudioEnabled = localStorage.getItem('sd_client_audio') !== 'false';
+const toggleClientAudio = document.getElementById('toggle-client-audio');
+const activeClientAudios = new Set();
+let clientBgmAudio = null;
+if (toggleClientAudio) {
+  toggleClientAudio.checked = clientAudioEnabled;
+  toggleClientAudio.addEventListener('change', (e) => {
+    clientAudioEnabled = e.target.checked;
+    localStorage.setItem('sd_client_audio', String(clientAudioEnabled));
+    if (!clientAudioEnabled && clientBgmAudio) {
+      clientBgmAudio.pause();
+      clientBgmAudio = null;
+    }
+  });
+}
 const quickStreamBtn = document.getElementById('quick-stream-btn');
 const quickRecordBtn = document.getElementById('quick-record-btn');
 const quickMuteBtn = document.getElementById('quick-mute-btn');
@@ -1046,10 +1061,30 @@ socket.on('sound:started', (data) => {
     btn.classList.add('sound-playing');
     setTimeout(() => btn.classList.remove('sound-playing'), 450);
   }
+
+  if (clientAudioEnabled && data.filename) {
+    const url = data.url || `/sounds/${encodeURIComponent(data.filename)}`;
+    const audio = new Audio(url);
+    const vol = typeof data.volume === 'number' ? data.volume : (parseFloat(soundboardVol?.value) || 0.8);
+    audio.volume = Math.max(0, Math.min(1, vol));
+    audio.play().catch((err) => {
+      console.warn('[Audio] Autoplay blocked by browser (interact with page first):', err.message);
+    });
+    activeClientAudios.add(audio);
+    audio.onended = () => activeClientAudios.delete(audio);
+    audio.onerror = () => activeClientAudios.delete(audio);
+  }
 });
 
 socket.on('sound:stopped', () => {
   document.querySelectorAll('.sound-playing').forEach((el) => el.classList.remove('sound-playing'));
+  for (const audio of activeClientAudios) {
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch (_) {}
+  }
+  activeClientAudios.clear();
 });
 
 socket.on('sounds:updated', (sounds) => {
@@ -1061,8 +1096,40 @@ socket.on('bgm:state', (bgmState) => {
   state.bgm.state = bgmState;
   updateBgmUI();
   renderBgm();
-});
 
+  if (!clientAudioEnabled) {
+    if (clientBgmAudio) {
+      clientBgmAudio.pause();
+      clientBgmAudio = null;
+    }
+    return;
+  }
+
+  if (bgmState.isPlaying && bgmState.currentTrack) {
+    const trackUrl = `/bgm/${encodeURIComponent(bgmState.currentTrack)}`;
+    const targetVol = Math.max(0, Math.min(1, bgmState.currentVolume ?? bgmState.baseVolume ?? 0.5));
+
+    if (!clientBgmAudio || clientBgmAudio.getAttribute('data-track') !== bgmState.currentTrack) {
+      if (clientBgmAudio) {
+        clientBgmAudio.pause();
+      }
+      clientBgmAudio = new Audio(trackUrl);
+      clientBgmAudio.setAttribute('data-track', bgmState.currentTrack);
+      clientBgmAudio.loop = true;
+      clientBgmAudio.volume = targetVol;
+      clientBgmAudio.play().catch((err) => {
+        console.warn('[BGM] Autoplay blocked by browser:', err.message);
+      });
+    } else {
+      clientBgmAudio.volume = targetVol;
+    }
+  } else {
+    if (clientBgmAudio) {
+      clientBgmAudio.pause();
+      clientBgmAudio = null;
+    }
+  }
+});
 socket.on('bgm:updated', (data) => {
   if (data.tracks) state.bgm.tracks = data.tracks;
   if (data.state) state.bgm.state = data.state;
