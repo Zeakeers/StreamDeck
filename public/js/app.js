@@ -19,6 +19,7 @@ import {
   toggleBgmEditMode,
   renderSoundboard,
   renderBgm,
+  renderMixer,
   closeRenameModal,
   confirmRename
 } from './deck.js';
@@ -101,11 +102,8 @@ if (toggleClientAudio) {
 const deckSlider = document.getElementById('deck-slider');
 const tabMixer = document.getElementById('tab-mixer');
 const tabSettings = document.getElementById('tab-settings');
-const viewDeck = document.getElementById('view-deck');
-const viewMixer = document.getElementById('view-mixer');
-const viewSettings = document.getElementById('view-settings');
 const tabButtons = document.querySelectorAll('.tab-btn');
-const backButtons = document.querySelectorAll('.btn-back');
+const backButtons = document.querySelectorAll('.btn-back, .btn-back-to-deck');
 
 let touchStartX = 0;
 let touchStartY = 0;
@@ -150,13 +148,17 @@ if (deckSlider) {
 }
 
 function showStandaloneView(targetView) {
-  if (viewDeck) viewDeck.style.display = 'none';
-  if (viewMixer) viewMixer.style.display = 'none';
-  if (viewSettings) viewSettings.style.display = 'none';
+  if (deckSlider) deckSlider.style.display = 'none';
+  if (tabMixer) tabMixer.style.display = 'none';
+  if (tabSettings) tabSettings.style.display = 'none';
 
-  if (targetView === 'mixer' && viewMixer) viewMixer.style.display = 'flex';
-  if (targetView === 'settings' && viewSettings) viewSettings.style.display = 'flex';
-  if (targetView === 'deck' && viewDeck) viewDeck.style.display = 'flex';
+  if (targetView === 'mixer' && tabMixer) {
+    tabMixer.style.display = 'block';
+  } else if (targetView === 'settings' && tabSettings) {
+    tabSettings.style.display = 'block';
+  } else if (targetView === 'deck' && deckSlider) {
+    deckSlider.style.display = 'flex';
+  }
 }
 
 function switchSubMode(mode) {
@@ -197,6 +199,7 @@ tabButtons.forEach((btn) => {
       tabButtons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       showStandaloneView('mixer');
+      renderMixer();
     } else if (tabName === 'settings') {
       tabButtons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
