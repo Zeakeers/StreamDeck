@@ -3,7 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 
-const configService = require('./services/config');
+const configService = require('./config');
 const ObsManager = require('./services/obsManager');
 const AudioManager = require('./services/audioManager');
 const BgmManager = require('./services/bgmManager');

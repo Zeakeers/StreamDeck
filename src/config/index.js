@@ -1,23 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-
-const DEFAULT_CONFIG = {
-  server: {
-    port: 3000
-  },
-  obs: {
-    host: '127.0.0.1',
-    port: 4455,
-    password: '',
-    autoConnect: true
-  },
-  soundboard: {
-    volume: 0.8
-  },
-  bgm: {
-    volume: 0.5
-  }
-};
+const { DEFAULT_CONFIG } = require('./defaults');
 
 const RUNTIME_PATH = path.resolve(__dirname, '../../config/runtime.json');
 let cachedConfig = null;
