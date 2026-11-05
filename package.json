@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node src/main.js",
     "player": "node bin/player.js",
-    "build:css": "tailwindcss -i ./src/input.css -o ./public/tailwind.css --minify",
+    "build:css": "tailwindcss -i ./src/styles/app.css -o ./public/css/app.css --minify",
     "gen-sounds": "node scripts/generateSounds.js",
     "test": "node test/audioManager.test.js"
   },
