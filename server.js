@@ -206,6 +206,7 @@ app.post('/api/sounds/upload', uploadSound.single('audio'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Tidak ada file audio yang diunggah.' });
   }
+  audioManager.invalidateCache();
   const sounds = audioManager.getSounds();
   io.emit('sounds:updated', sounds);
   res.json({ success: true, file: req.file.filename, sounds });
@@ -296,6 +297,7 @@ app.post('/api/bgm/upload', uploadBgm.single('audio'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Tidak ada file audio BGM yang diunggah.' });
   }
+  bgmManager.invalidateCache();
   const tracks = bgmManager.getTracks();
   io.emit('bgm:updated', { tracks, state: bgmManager.getState() });
   res.json({ success: true, file: req.file.filename, tracks });

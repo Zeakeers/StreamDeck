@@ -9,7 +9,7 @@
     "start": "node server.js",
     "build:css": "tailwindcss -i ./src/input.css -o ./public/tailwind.css --minify",
     "gen-sounds": "node scripts/generateSounds.js",
-    "test": "echo \"No tests\" && exit 0"
+    "test": "node test/audioManager.test.js"
   },
   "keywords": [],
   "author": "",
