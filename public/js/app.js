@@ -6,11 +6,7 @@ import {
   requestWakeLock,
   releaseWakeLock
 } from './state.js';
-import {
-  isClientAudioEnabled,
-  setClientAudioEnabled,
-  stopBgmDirect
-} from './audio.js';
+import { stopBgmDirect } from './audio.js';
 import {
   setSwiping,
   soundEditMode,
@@ -89,14 +85,6 @@ if (toggleVibrate) {
   });
 }
 
-// --- Client Audio Toggle ---
-const toggleClientAudio = document.getElementById('toggle-client-audio');
-if (toggleClientAudio) {
-  toggleClientAudio.checked = isClientAudioEnabled();
-  toggleClientAudio.addEventListener('change', (e) => {
-    setClientAudioEnabled(e.target.checked);
-  });
-}
 
 // --- Tab Navigation & Deck Slider ---
 const deckSlider = document.getElementById('deck-slider');
@@ -226,21 +214,11 @@ const sectionSoundboard = document.getElementById('section-soundboard');
 const sectionBgm = document.getElementById('section-bgm');
 
 if (btnModeSoundboard && btnModeBgm) {
-  btnModeSoundboard.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    haptic(25);
-    switchSubMode('soundboard');
-  });
   btnModeSoundboard.addEventListener('click', () => {
     haptic(25);
     switchSubMode('soundboard');
   });
 
-  btnModeBgm.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    haptic(25);
-    switchSubMode('bgm');
-  });
   btnModeBgm.addEventListener('click', () => {
     haptic(25);
     switchSubMode('bgm');
@@ -306,11 +284,15 @@ if (soundboardVol) {
 }
 
 if (bgmVolSlider) {
+  let bgmVolDebounce = null;
   bgmVolSlider.addEventListener('input', (e) => {
     const vol = parseFloat(e.target.value);
     const pct = Math.round(vol * 100);
     if (volBgmVal) volBgmVal.textContent = `${pct}%`;
-    socket.emit('bgm:volume', vol);
+    clearTimeout(bgmVolDebounce);
+    bgmVolDebounce = setTimeout(() => {
+      socket.emit('bgm:volume', vol);
+    }, 35);
   });
 }
 

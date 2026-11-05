@@ -25,10 +25,16 @@ class BgmManager {
 
   _resolveLinuxPlayer() {
     if (this.linuxPlayer !== undefined) return this.linuxPlayer;
-    const candidates = ['pw-play', 'paplay', 'ffplay', 'play', 'aplay'];
+    const candidates = [
+      { cmd: 'pw-play', args: (vol, file) => ['--volume', String(vol), file] },
+      { cmd: 'paplay', args: (vol, file) => [`--volume=${Math.round(vol * 65536)}`, file] },
+      { cmd: 'ffplay', args: (vol, file) => ['-nodisp', '-autoexit', '-loglevel', 'quiet', '-volume', String(Math.round(vol * 100)), file] },
+      { cmd: 'play', args: (vol, file) => ['-v', String(vol), file] },
+      { cmd: 'aplay', args: (_vol, file) => [file] }
+    ];
     for (const c of candidates) {
       try {
-        const res = spawnSync('which', [c], { stdio: 'ignore' });
+        const res = spawnSync('which', [c.cmd], { stdio: 'ignore' });
         if (res.status === 0) {
           this.linuxPlayer = c;
           return c;
@@ -105,12 +111,48 @@ class BgmManager {
     this.currentVolume = this.baseVolume;
 
     if (process.platform === 'win32') {
-      const ps = spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', '-'], {
+      const b64Path = Buffer.from(fullPath, 'utf8').toString('base64');
+      const initialVol = Number(this.currentVolume || this.baseVolume || 0.5).toFixed(3);
+      const script = `
+Add-Type -AssemblyName presentationCore
+$path = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${b64Path}'))
+      $resolved = (Resolve-Path -LiteralPath $path).ProviderPath
+      $p = New-Object system.windows.media.mediaplayer
+      $p.Open([System.Uri]$resolved)
+$p.Play()
+
+$in = [Console]::In
+while ($null -ne ($line = $in.ReadLine())) {
+  $line = $line.Trim()
+  if ($line.StartsWith('VOL ')) {
+    try {
+      $p.Volume = [double]($line.Substring(4))
+    } catch {}
+  } elseif ($line -eq 'LOOP') {
+    try {
+      if ($p.NaturalDuration.HasTimeSpan -and ($p.Position.TotalSeconds -ge ($p.NaturalDuration.TimeSpan.TotalSeconds - 0.3))) {
+        $p.Position = [System.TimeSpan]::Zero
+        $p.Play()
+      }
+    } catch {}
+  } elseif ($line -eq 'STOP') {
+    try {
+      $p.Stop()
+      $p.Close()
+    } catch {}
+    break
+  }
+}
+`;
+      const encoded = Buffer.from(script, 'utf16le').toString('base64');
+      const ps = spawn('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
       this.psProcess = ps;
+      if (ps.stdout) ps.stdout.resume();
+      if (ps.stderr) ps.stderr.resume();
 
       ps.on('error', (err) => {
         console.error('[BGM] PowerShell error:', err.message);
@@ -126,30 +168,11 @@ class BgmManager {
         }
       });
 
-      const b64Path = Buffer.from(fullPath, 'utf16le').toString('base64');
-      const initialVol = this.baseVolume.toFixed(2);
-      const initScript = `
-Add-Type -AssemblyName presentationCore
-$b64 = '${b64Path}'
-$raw = [System.Convert]::FromBase64String($b64)
-$path = [System.Text.Encoding]::Unicode.GetString($raw)
-$p = New-Object system.windows.media.mediaplayer
-$p.Open([System.Uri](Resolve-Path -LiteralPath $path).Path)
-$p.Volume = ${initialVol}
-$p.Play()
-`;
-      ps.stdin.write(initScript);
-
-      // Loop checker every 250ms
+      // Loop check sending clean single-line command
       this.loopTimer = setInterval(() => {
         if (this.psProcess && this.psProcess.stdin && !this.psProcess.killed) {
           try {
-            this.psProcess.stdin.write(`
-if ($p.NaturalDuration.HasTimeSpan -and ($p.Position.TotalSeconds -ge ($p.NaturalDuration.TimeSpan.TotalSeconds - 0.25))) {
-    $p.Position = [System.TimeSpan]::Zero
-    $p.Play()
-}
-`);
+            this.psProcess.stdin.write("LOOP\n");
           } catch (_) {}
         }
       }, 250);
@@ -157,15 +180,17 @@ if ($p.NaturalDuration.HasTimeSpan -and ($p.Position.TotalSeconds -ge ($p.Natura
       // Fallback for macOS / Linux (looping via child_process)
       const playLoop = () => {
         if (!this.isPlaying || this.currentTrack !== safeFilename) return;
-        let cmd = process.platform === 'darwin' ? 'afplay' : this._resolveLinuxPlayer();
-        if (!cmd) return;
-
-        let args = [fullPath];
-        if (cmd === 'ffplay') {
-          args = ['-nodisp', '-autoexit', '-loglevel', 'quiet', fullPath];
+        let p;
+        if (process.platform === 'darwin') {
+          const vol = this.currentVolume ?? this.baseVolume ?? 0.5;
+          p = spawn('afplay', ['-v', String(vol), fullPath], { stdio: 'ignore' });
+        } else {
+          const player = this._resolveLinuxPlayer();
+          if (!player) return;
+          const vol = this.currentVolume ?? this.baseVolume ?? 0.5;
+          p = spawn(player.cmd, player.args(vol, fullPath), { stdio: 'ignore' });
         }
 
-        const p = spawn(cmd, args, { stdio: 'ignore' });
         this.psProcess = p;
         p.on('close', () => {
           if (this.isPlaying && this.currentTrack === safeFilename) {
@@ -192,8 +217,13 @@ if ($p.NaturalDuration.HasTimeSpan -and ($p.Position.TotalSeconds -ge ($p.Natura
 
     if (this.psProcess) {
       try {
-        if (process.platform === 'win32' && this.psProcess.pid) {
-          exec(`taskkill /F /T /PID ${this.psProcess.pid}`, () => {});
+        if (process.platform === 'win32') {
+          if (this.psProcess.stdin && !this.psProcess.killed) {
+            this.psProcess.stdin.write("STOP\n");
+          }
+          if (this.psProcess.pid) {
+            exec(`taskkill /F /T /PID ${this.psProcess.pid}`, () => {});
+          }
         } else {
           this.psProcess.kill('SIGKILL');
         }
@@ -219,10 +249,27 @@ if ($p.NaturalDuration.HasTimeSpan -and ($p.Position.TotalSeconds -ge ($p.Natura
 
   applyVolumeImmediate(target) {
     this.currentVolume = target;
-    if (this.psProcess && this.psProcess.stdin && !this.psProcess.killed) {
-      try {
-        this.psProcess.stdin.write(`$p.Volume = ${target.toFixed(3)}\n`);
-      } catch (_) {}
+    if (process.platform === 'win32') {
+      if (this.psProcess && this.psProcess.stdin && !this.psProcess.killed) {
+        try {
+          this.psProcess.stdin.write(`VOL ${target.toFixed(3)}\n`);
+        } catch (_) {}
+      }
+    } else if (process.platform === 'linux' && this.psProcess?.pid) {
+      const pid = this.psProcess.pid;
+      const pct = Math.round(target * 100);
+      exec('pactl list sink-inputs', (err, stdout) => {
+        if (err || !stdout) return;
+        const blocks = stdout.split(/Sink Input #(\d+)/);
+        for (let i = 1; i < blocks.length; i += 2) {
+          const id = blocks[i];
+          const content = blocks[i + 1] || '';
+          if (content.includes(`application.process.id = "${pid}"`)) {
+            exec(`pactl set-sink-input-volume ${id} ${pct}%`, () => {});
+            break;
+          }
+        }
+      });
     }
   }
 

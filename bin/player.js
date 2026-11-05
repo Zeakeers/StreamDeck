@@ -7,87 +7,212 @@ const { io } = require('socket.io-client');
 const AudioManager = require('../src/services/audioManager');
 const BgmManager = require('../src/services/bgmManager');
 
-// ponytail: CLI daemon connects to cloud StreamDeck; upgrade to bidirectional OBS relay if local OBS bridging needed
 const rootDir = path.resolve(__dirname, '..');
 process.chdir(rootDir);
 
-const serverUrl = process.env.STREAMDECK_SERVER || process.argv[2] || 'http://100.83.249.40:3001';
+const nonFlagArgs = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
+const serverUrl = process.env.STREAMDECK_SERVER || nonFlagArgs[0] || 'http://100.83.249.40:3001';
+const isSyncOnly = process.argv.includes('--sync-only');
+
 const soundsDir = path.join(rootDir, 'media', 'sounds');
 const bgmDir = path.join(rootDir, 'media', 'bgm');
 
-const localSounds = new Set(fs.existsSync(soundsDir) ? fs.readdirSync(soundsDir) : []);
-const localBgm = new Set(fs.existsSync(bgmDir) ? fs.readdirSync(bgmDir) : []);
+if (!fs.existsSync(soundsDir)) fs.mkdirSync(soundsDir, { recursive: true });
+if (!fs.existsSync(bgmDir)) fs.mkdirSync(bgmDir, { recursive: true });
+
+const localSounds = new Set(fs.readdirSync(soundsDir));
+const localBgm = new Set(fs.readdirSync(bgmDir));
 
 const audio = new AudioManager(soundsDir);
 const bgm = new BgmManager(bgmDir);
 audio.setBgmManager(bgm);
 
-function downloadIfMissing(dir, filename, subpath) {
+function downloadFile(dir, filename, subpath) {
   return new Promise((resolve) => {
     const fullPath = path.join(dir, filename);
-    if (fs.existsSync(fullPath)) return resolve(fullPath);
+    if (fs.existsSync(fullPath) && fs.statSync(fullPath).size > 0) {
+      return resolve(fullPath);
+    }
 
     const fileUrl = `${serverUrl.replace(/\/$/, '')}/${subpath}/${encodeURIComponent(filename)}`;
     const client = fileUrl.startsWith('https') ? https : http;
 
-    console.log(`[Audio Daemon] Fetching missing asset: ${filename}`);
     const dest = fs.createWriteStream(fullPath);
-    client.get(fileUrl, (res) => {
+    const req = client.get(fileUrl, (res) => {
       if (res.statusCode !== 200) {
-        fs.unlink(fullPath, () => {});
+        dest.close(() => fs.unlink(fullPath, () => {}));
         return resolve(null);
       }
       res.pipe(dest);
       dest.on('finish', () => {
-        dest.close();
-        audio.invalidateCache();
-        bgm.invalidateCache();
-        resolve(fullPath);
+        dest.close(() => resolve(fullPath));
       });
-    }).on('error', () => {
+      dest.on('error', () => {
+        fs.unlink(fullPath, () => {});
+        resolve(null);
+      });
+    });
+
+    req.on('error', () => {
+      fs.unlink(fullPath, () => {});
+      resolve(null);
+    });
+
+    req.setTimeout(12000, () => {
+      req.destroy();
       fs.unlink(fullPath, () => {});
       resolve(null);
     });
   });
 }
 
+let isSyncing = false;
+let isInitialSyncDone = false;
+
+async function syncAll(soundsList = [], bgmList = []) {
+  if (isSyncing) return;
+  isSyncing = true;
+
+  const currentDiskSounds = new Set(fs.existsSync(soundsDir) ? fs.readdirSync(soundsDir) : []);
+  const currentDiskBgm = new Set(fs.existsSync(bgmDir) ? fs.readdirSync(bgmDir) : []);
+
+  const missingSounds = (soundsList || [])
+    .map((s) => (typeof s === 'string' ? s : s?.filename))
+    .filter((name) => name && !currentDiskSounds.has(name));
+
+  const missingBgm = (bgmList || [])
+    .map((b) => (typeof b === 'string' ? b : b?.filename))
+    .filter((name) => name && !currentDiskBgm.has(name));
+
+  const totalMissing = missingSounds.length + missingBgm.length;
+
+  if (totalMissing === 0) {
+    if (!isInitialSyncDone) {
+      isInitialSyncDone = true;
+      console.log(`[Sync] All assets up to date (${currentDiskSounds.size} sounds, ${currentDiskBgm.size} BGM cached).`);
+      console.log('[Sync] Ready for zero-delay instant playback.\n');
+    }
+    isSyncing = false;
+    if (isSyncOnly) {
+      socket.close();
+      process.exit(0);
+    }
+    return;
+  }
+
+  console.log(`[Sync] Detected ${totalMissing} new/missing asset(s) to sync from server...`);
+  let downloadedCount = 0;
+
+  for (const soundName of missingSounds) {
+    downloadedCount++;
+    process.stdout.write(`[Sync] [${downloadedCount}/${totalMissing}] Fetching SFX: ${soundName}... `);
+    const result = await downloadFile(soundsDir, soundName, 'sounds');
+    if (result) {
+      localSounds.add(soundName);
+      console.log('OK');
+    } else {
+      console.log('FAILED');
+    }
+  }
+
+  for (const bgmName of missingBgm) {
+    downloadedCount++;
+    process.stdout.write(`[Sync] [${downloadedCount}/${totalMissing}] Fetching BGM: ${bgmName}... `);
+    const result = await downloadFile(bgmDir, bgmName, 'bgm');
+    if (result) {
+      localBgm.add(bgmName);
+      console.log('OK');
+    } else {
+      console.log('FAILED');
+    }
+  }
+
+  audio.invalidateCache();
+  bgm.invalidateCache();
+  isInitialSyncDone = true;
+  console.log(`[Sync] Sync complete. ${totalMissing} asset(s) ready for instant playback.\n`);
+  isSyncing = false;
+
+  if (isSyncOnly) {
+    socket.close();
+    process.exit(0);
+  }
+}
+
 console.log('='.repeat(54));
 console.log('   STREAMDECK LOCAL AUDIO DAEMON (CLOUD RECEIVER)   ');
 console.log('='.repeat(54));
 console.log(` Target Server : ${serverUrl}`);
+if (isSyncOnly) {
+  console.log(' Mode          : Pre-sync only (download assets & exit)');
+}
 console.log(' Connecting to cloud controller...');
 console.log('='.repeat(54));
 
 const socket = io(serverUrl, {
-  reconnection: true,
+  reconnection: !isSyncOnly,
   reconnectionDelay: 1000,
-  transports: ['websocket'] // Force WebSocket transport (skip polling negotiation, saves ~150ms handshake)
+  transports: ['websocket']
 });
+
+if (isSyncOnly) {
+  setTimeout(() => {
+    console.warn('[Sync] Pre-sync timeout reached. Continuing installation.');
+    socket.close();
+    process.exit(0);
+  }, 15000);
+}
 
 socket.on('connect', () => {
   console.log(`[Audio Daemon] Connected to ${serverUrl} (Socket ID: ${socket.id})`);
-  console.log('[Audio Daemon] Ready. Zero-latency in-memory cache enabled.\n');
+  console.log('[Sync] Requesting asset catalog from server...');
 });
 
 socket.on('disconnect', (reason) => {
-  console.warn(`[Audio Daemon] Disconnected (${reason}). Reconnecting...`);
+  if (!isSyncOnly) {
+    console.warn(`[Audio Daemon] Disconnected (${reason}). Reconnecting...`);
+  }
 });
 
 socket.on('connect_error', (err) => {
   console.error(`[Audio Daemon] Connection error: ${err.message}`);
+  if (isSyncOnly) {
+    console.warn('[Sync] Cannot reach server during pre-sync. Daemon will sync on launch.');
+    socket.close();
+    process.exit(0);
+  }
+});
+
+// Initial asset catalog sync on connection
+socket.on('init:state', (data) => {
+  if (data?.sounds || data?.bgm?.tracks) {
+    syncAll(data.sounds || [], data.bgm?.tracks || []);
+  }
+});
+
+// Live upload event from website: soundboard
+socket.on('sounds:updated', (sounds) => {
+  console.log('[Sync] Soundboard updated on website. Checking for new uploads...');
+  syncAll(sounds || [], []);
+});
+
+// Live upload event from website: BGM looper
+socket.on('bgm:updated', (data) => {
+  console.log('[Sync] BGM catalog updated on website. Checking for new uploads...');
+  syncAll([], data?.tracks || []);
 });
 
 socket.on('sound:started', (data) => {
   if (!data?.filename) return;
   const vol = typeof data.volume === 'number' ? data.volume : 0.8;
   console.log(`[Audio Daemon] ${new Date().toISOString()} -> Play SFX: ${data.filename} (Vol: ${Math.round(vol * 100)}%)`);
+
   if (localSounds.has(data.filename)) {
-    // Instant zero-delay memory playback (<1ms)
     audio.play(data.filename, vol).catch(console.error);
     return;
   }
 
-  downloadIfMissing(soundsDir, data.filename, 'sounds').then((fullPath) => {
+  downloadFile(soundsDir, data.filename, 'sounds').then((fullPath) => {
     if (fullPath) {
       localSounds.add(data.filename);
       audio.play(data.filename, vol).catch(console.error);
@@ -102,12 +227,17 @@ socket.on('sound:stopped', () => {
 socket.on('bgm:state', (state) => {
   if (!state) return;
 
+  const targetVol = typeof state.currentVolume === 'number'
+    ? state.currentVolume
+    : (typeof state.baseVolume === 'number' ? state.baseVolume : 0.5);
+
   if (state.isPlaying && state.currentTrack) {
+    bgm.baseVolume = targetVol;
     if (bgm.currentTrack !== state.currentTrack) {
       if (localBgm.has(state.currentTrack)) {
         bgm.play(state.currentTrack).catch(console.error);
       } else {
-        downloadIfMissing(bgmDir, state.currentTrack, 'bgm').then((fullPath) => {
+        downloadFile(bgmDir, state.currentTrack, 'bgm').then((fullPath) => {
           if (fullPath) {
             localBgm.add(state.currentTrack);
             bgm.play(state.currentTrack).catch(console.error);
@@ -116,7 +246,6 @@ socket.on('bgm:state', (state) => {
       }
     }
 
-    const targetVol = state.currentVolume ?? state.baseVolume ?? 0.5;
     if (state.isDucked) {
       bgm.duck();
     } else {

@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "src/main.js",
   "bin": {
-    "streamdeck": "./bin/streamdeck.js"
+    "streamdeck": "./bin/streamdeck.js",
+    "streamdeck-player": "./bin/player.js"
   },
   "scripts": {
     "start": "node src/main.js",

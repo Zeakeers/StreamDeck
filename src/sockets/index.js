@@ -89,8 +89,14 @@ function setupSockets(io, { obsManager, audioManager, bgmManager, configService 
       if (typeof callback === 'function') callback({ success: true });
     });
 
-    socket.on('bgm:play', async (filename, callback) => {
+    socket.on('bgm:play', async (data, callback) => {
       try {
+        const filename = typeof data === 'string' ? data : data?.filename;
+        const vol = typeof data === 'object' && typeof data?.volume === 'number' ? data.volume : undefined;
+        if (vol !== undefined) {
+          bgmManager.setVolume(vol);
+          configService.updateConfig({ bgm: { volume: vol } });
+        }
         let state;
         try {
           state = await bgmManager.play(filename);
@@ -113,8 +119,9 @@ function setupSockets(io, { obsManager, audioManager, bgmManager, configService 
     });
 
     socket.on('bgm:volume', (volume, callback) => {
-      configService.updateConfig({ bgm: { volume } });
-      const state = bgmManager.setVolume(volume);
+      const volNum = Math.max(0, Math.min(1, Number(volume) || 0.5));
+      configService.updateConfig({ bgm: { volume: volNum } });
+      const state = bgmManager.setVolume(volNum);
       io.emit('bgm:state', state);
       if (typeof callback === 'function') callback({ success: true, state });
     });

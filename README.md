@@ -10,132 +10,163 @@ UI dirancang clean dan minimalis mengadopsi gaya antarmuka **YouTube & Instagram
 - [Fitur Utama](#fitur-utama)
 - [Arsitektur Proyek](#arsitektur-proyek)
 - [Prasyarat Sistem](#prasyarat-sistem)
-- [Panduan Instalasi](#panduan-instalasi)
-  - [Opsi 1: Menjalankan Langsung di PC Lokal (Node.js)](#opsi-1-menjalankan-langsung-di-pc-lokal-nodejs)
-  - [Opsi 2: Menjalankan dengan Docker / Docker Compose](#opsi-2-menjalankan-dengan-docker--docker-compose)
-  - [Opsi 3: Deploy di Cloud / VPS + Local Audio Player](#opsi-3-deploy-di-cloud--vps--local-audio-player)
+- [Panduan Instalasi & Penggunaan](#panduan-instalasi--penggunaan)
+  - [Instalasi Cepat (Linux / macOS)](#1-instalasi-cepat-linux--macos)
+  - [Instalasi Cepat (Windows)](#2-instalasi-cepat-windows)
+  - [Opsi Docker / VPS Cloud](#3-opsi-docker--vps-cloud)
+- [Penggunaan Local Audio Player (CLI Daemon)](#penggunaan-local-audio-player-cli-daemon)
+  - [Di Linux / macOS](#di-linux--macos)
+  - [Di Windows](#di-windows)
+- [Sistem Sinkronisasi Otomatis (Auto-Sync)](#sistem-sinkronisasi-otomatis-auto-sync)
 - [Pengaturan OBS Studio](#pengaturan-obs-studio)
 - [Cara Penggunaan di Smartphone](#cara-penggunaan-di-smartphone)
-- [Daftar Perintah (Scripts)](#daftar-perintah-scripts)
-- [Struktur Folder](#struktur-folder)
 - [Troubleshooting & FAQ](#troubleshooting--faq)
 
 ---
 
 ## Fitur Utama
 
-- **Zero-Latency Soundboard**: Respon instan (<15ms) berkat event broadcast non-blocking dan pointerdown trigger.
-- **BGM Continuous Looper**:
-  - Pemutaran musik latar otomatis looping tanpa henti.
-  - **Auto-Ducking**: Volume BGM otomatis mengecil saat Soundboard ditekan, dan kembali normal saat selesai.
-  - Kontrol volume independen untuk Soundboard & BGM.
-- **Dukungan Cloud & Remote**:
-  - Dapat di-deploy di VPS / Server Docker.
-  - Auto-detect IP Tailscale (`100.x.x.x`) dan mencetak QR Code khusus Tailscale di terminal.
-  - Dilengkapi daemon audio lokal (`bin/player.js`) agar server di cloud dapat membunyikan speaker PC lokal.
-  - Toggle audio browser (`sd_client_audio`) untuk memutar suara langsung di speaker HP jika diinginkan.
+- **Scroll-Safe Tap Interaction**: Tombol soundboard dan scene dilengkapi gesture disambiguation (`attachTapListener`). Menggeser/men-scroll layar HP tidak akan memicu suara secara tidak sengaja.
+- **Zero-Latency Soundboard**: Respon instan (<15ms) berkat cache lokal in-memory dan event broadcast non-blocking via WebSocket.
+- **BGM Continuous Looper & Live Volume Control**:
+  - Pemutaran musik latar looping otomatis tanpa henti.
+  - **Live Volume & Auto-Ducking**: Slider volume BGM terhubung real-time. Volume BGM otomatis mengecil halus (ducking) saat soundboard berbunyi, lalu kembali normal.
+  - Kontrol volume native di Windows (PowerShell Media Foundation) dan Linux (PipeWire / PulseAudio `pactl`).
+- **Dedicated CLI Audio Sink (`streamdeck-player`)**:
+  - Audio diputar khusus melalui speaker PC lokal streamer melalui daemon CLI ringan (~25MB RAM).
+  - Browser smartphone hanya bertindak sebagai kontroler tombol murni (tanpa membunyikan speaker HP).
+- **Auto-Sync Media**:
+  - Pre-sync otomatis saat instalasi dan saat `streamdeck-player` pertama kali dinyalakan.
+  - Live auto-download saat ada file baru diunggah melalui dashboard web.
+- **Dukungan Cloud & Tailscale**:
+  - Server web dapat di-host di VPS / server remote (Docker).
+  - Auto-detect IP Tailscale (`100.x.x.x`) dan mencetak QR Code khusus di terminal.
 - **Kontrol Penuh OBS Studio**: Ganti scene real-time, toggle Mute Mic, toggle Start/Stop Streaming & Recording.
-- **Manajemen Media Langsung via Web**: Upload, rename, dan delete file audio langsung dari HP.
-- **Optimasi HP Bekas**: Mendukung Fullscreen, Screen WakeLock (mencegah layar redup), dan Haptic feedback (getar).
+- **Optimasi Mobile / PWA**: Fullscreen mode, Screen WakeLock (mencegah layar redup), dan Haptic feedback getar.
 
 ---
 
 ## Arsitektur Proyek
 
-Sistem menggunakan arsitektur modular yang memisahkan tanggung jawab:
-- **`src/main.js`**: Server bootstrap minimalis (Express + Socket.IO).
-- **`src/config/`**: Sistem konfigurasi dinamis dengan in-code defaults (tanpa ketergantungan file statis).
-- **`src/services/`**: Domain services (`audioManager`, `bgmManager`, `obsManager`, `networkUtils`).
-- **`src/routes/`** & **`src/sockets/`**: Endpoint REST API dan gateway WebSocket.
-- **`public/js/`**: Frontend ES Modules modern (`state.js`, `audio.js`, `deck.js`, `socket.js`, `app.js`).
-- **`media/`**: Penyimpanan runtime file audio (`media/sounds/` & `media/bgm/`) yang terisolasi dari git repo.
+```
+┌─────────────────────────────────┐
+│     Smartphone / Browser UI     │ (Web Controller Surface)
+│  - Scenes Grid   - Soundboard   │ - Zero browser audio output
+│  - BGM Looper    - Audio Mixer  │ - Touch & scroll disambiguation
+└────────────────┬────────────────┘
+                 │ WebSocket (Socket.IO)
+┌────────────────▼────────────────┐
+│   StreamDeck Core Web Server    │ (Node.js / Docker Cloud or Local)
+│   - Port 3000 / 3001            │ - Manages OBS WebSocket state
+│   - Express REST API & Multer   │ - Broadcasts sound & BGM events
+└────────────────┬────────────────┘
+                 │ WebSocket + HTTP Asset Stream
+┌────────────────▼────────────────┐
+│   Local Audio Player Daemon     │ (streamdeck-player CLI on PC)
+│   - Windows (PowerShell WMP)    │ - In-memory pre-cached audio sink
+│   - Linux (pw-play/paplay/pactl)│ - Background service / terminal runner
+└─────────────────────────────────┘
+```
 
 ---
 
 ## Prasyarat Sistem
 
 1. **Node.js**: Versi 18 LTS atau 20+ ([Download Node.js](https://nodejs.org/)).
-2. **OBS Studio**: Versi 28 ke atas (sudah memiliki OBS WebSocket v5 bawaan) ([Download OBS](https://obsproject.com/)).
+2. **OBS Studio**: Versi 28 ke atas (memiliki OBS WebSocket v5 bawaan) ([Download OBS](https://obsproject.com/)).
 3. **Koneksi Jaringan**: PC dan HP terhubung ke Wi-Fi yang sama, atau terhubung via Tailscale.
 
 ---
 
-## Panduan Instalasi
+## Panduan Instalasi & Penggunaan
 
-### Opsi 1: Menjalankan Langsung di PC Lokal (Node.js)
+### 1. Instalasi Cepat (Linux / macOS)
 
-1. **Clone repository**:
-   ```bash
-   git clone https://github.com/Zeakeers/StreamDeck.git streamdeck
-   cd streamdeck
-   ```
+Jalankan script installer:
+```bash
+./install.sh
+```
+Atau langsung tentukan URL server tujuan:
+```bash
+./install.sh http://ip-server:3001
+```
 
-2. **Pasang dependensi**:
-   ```bash
-   npm install
-   ```
-
-3. **Generate sample suara & BGM awal**:
-   *(File media sengaja di-ignore agar repo tetap ringan < 2MB)*
-   ```bash
-   npm run setup:media
-   ```
-
-4. **Jalankan server**:
-   ```bash
-   npm start
-   ```
-   *Atau di Windows:* Klik 2x file `start.bat`.
-
-5. Terminal akan menampilkan URL lokal (`http://localhost:3000`), URL LAN Wi-Fi, dan QR Code untuk discan dari HP.
+Script akan:
+1. Memasang dependensi (`npm install`).
+2. Mendaftarkan perintah global `streamdeck-player`.
+3. Men-sinkronkan semua file audio secara otomatis dari server ke PC lokal.
 
 ---
 
-### Opsi 2: Menjalankan dengan Docker / Docker Compose
+### 2. Instalasi Cepat (Windows)
 
-1. **Clone & masuk ke folder**:
-   ```bash
-   git clone https://github.com/Zeakeers/StreamDeck.git streamdeck
-   cd streamdeck
-   npm run setup:media
-   ```
+1. Double-click file **`install.bat`** (atau jalankan di Command Prompt / PowerShell).
+2. Masukkan URL server controller (default `http://localhost:3000` atau URL VPS).
 
-2. **Jalankan via Docker Compose**:
-   ```bash
-   docker compose up -d --build
-   ```
+Script akan:
+1. Memasang dependensi & mendaftarkan perintah global `streamdeck-player`.
+2. Men-sinkronkan semua file audio secara otomatis dari server ke PC lokal.
+3. Menghasilkan shortcut player:
+   - **`start-player.vbs`**: Menjalankan player di latar belakang tanpa jendela CMD.
+   - **`stop-player.bat`**: Menghentikan player di latar belakang.
 
-3. Server akan berjalan di port `3001` (dapat dikonfigurasi lewat environment variable `STREAMDECK_PORT`).
+### 3. Opsi Docker / VPS Cloud
+
+Jika menjalankan server web StreamDeck di VPS / Docker:
+```bash
+docker compose up -d --build
+```
+Port default container adalah `3001` (dapat disesuaikan di `docker-compose.yml`).
 
 ---
 
-### Opsi 3: Deploy di Cloud / VPS + Local Audio Player
+## Penggunaan Local Audio Player (CLI Daemon)
 
-Jika StreamDeck di-host di Cloud Server (misal `http://mc-server:3001` atau `http://100.83.249.40:3001`):
+Audio daemon bertugas menerima sinyal dari controller HP dan membunyikan soundboard/BGM langsung ke speaker PC Anda.
 
-1. **Jalankan container StreamDeck di server cloud**:
-   ```bash
-   docker compose up -d
-   ```
+### Di Linux / macOS
 
-2. **Buka HP**: Akses URL web controller di browser HP Anda.
+Cukup jalankan di terminal:
+```bash
+streamdeck-player
+```
+*(Atau dengan URL server custom: `streamdeck-player http://ip-server:3001`)*
 
-3. **Jalankan Daemon Player di PC Lokal Anda** (agar suara soundboard tetap berbunyi di speaker PC / OBS Anda):
-   ```bash
-   node bin/player.js http://ip-server-cloud:3001
-   ```
-   *Daemon ini otomatis mendownload aset yang belum ada dan memutar audio dengan latensi sub-15ms via cache memori.*
+---
+### Di Windows
+
+**Opsi 1: Menjalankan di Terminal (Command Prompt / PowerShell)**
+Buka CMD / PowerShell di mana saja:
+```cmd
+streamdeck-player
+REM atau dengan URL server:
+streamdeck-player http://100.83.249.40:3001
+```
+*Tekan `Ctrl + C` untuk berhenti.*
+
+**Opsi 2: Menjalankan di Background (Tanpa Jendela Terminal)**
+1. Double-click **`start-player.vbs`** di folder project. Daemon akan berjalan di latar belakang secara hening.
+2. Untuk mematikan: double-click **`stop-player.bat`**.
+3. *(Opsional auto-start on boot)*: Tekan `Win + R`, ketik `shell:startup`, lalu paste shortcut `start-player.vbs` ke folder tersebut.
+
+---
+
+## Sistem Sinkronisasi Otomatis (Auto-Sync)
+
+`streamdeck-player` dilengkapi mekanisme sync cerdas agar tombol pertama yang ditekan tidak mengalami delay download:
+
+1. **Startup Pre-Sync**: Saat pertama kali terhubung ke server, daemon membandingkan katalog file server dengan folder lokal `media/sounds` dan `media/bgm`. File yang belum ada langsung di-download sebelum controller aktif digunakan.
+2. **Live Upload Auto-Sync**: Saat streamer atau moderator mengunggah SFX atau BGM baru via dashboard web, daemon menerima socket broadcast (`sounds:updated` / `bgm:updated`) dan langsung mengunduh file baru tersebut di background.
 
 ---
 
 ## Pengaturan OBS Studio
 
-Lakukan langkah ini sekali di PC Anda:
+Lakukan langkah ini sekali di OBS PC Anda:
 1. Buka **OBS Studio**.
 2. Masuk ke menu **Tools (Alat)** -> **WebSocket Server Settings**.
-3. Centang **Enable WebSocket server**.
-4. Port default adalah `4455`.
-5. Pengaturan Autentikasi:
+3. Centang **Enable WebSocket server** (Port default `4455`).
+4. Pengaturan Autentikasi:
    - **Tanpa Password**: Hilangkan centang pada **Enable Authentication** -> klik **Apply/OK**.
    - **Dengan Password**: Jika dicentang, klik **Show Connect Info** untuk menyalin password. Masukkan password tersebut pada tab **Settings** di web StreamDeck, lalu klik **Hubungkan ke OBS**.
 
@@ -144,77 +175,14 @@ Lakukan langkah ini sekali di PC Anda:
 ## Cara Penggunaan di Smartphone
 
 1. Sambungkan HP ke jaringan Wi-Fi yang sama dengan PC (atau nyalakan Tailscale di HP).
-2. Scan QR Code di terminal menggunakan kamera HP (atau buka URL yang tertera di Chrome/Safari).
+2. Scan QR Code di terminal menggunakan kamera HP (atau buka URL server di Chrome/Safari).
 3. **Mode Fullscreen**: Tekan ikon layar penuh di pojok kanan atas.
-4. **Wake Lock**: Tekan ikon gembok/layar agar layar HP tetap menyala tanpa mati otomatis.
-5. **Navigasi Slider**: Geser layar ke kiri atau kanan untuk berpindah antara tab **Scenes** dan **Soundboard**.
-6. **Tema**: Pilih Dark Mode atau Light Mode sesuai selera.
+4. **Wake Lock**: Tekan ikon layar/gembok agar layar HP tetap menyala selama streaming.
+5. **Navigasi Slider**: Geser layar ke kiri atau kanan untuk berpindah antara tab **Scenes** dan **Soundboard / BGM**.
+6. **BGM Mode**: Beralih antara mode **SFX Soundboard** dan **BGM Looper** menggunakan toggle di atas grid audio.
 
 ---
 
-## Daftar Perintah (Scripts)
-
-| Perintah | Fungsi |
-|---|---|
-| `npm start` | Menjalankan server aplikasi (`node src/main.js`) |
-| `npm run setup:media` | Men-generate sample suara (.wav) dan BGM looper awal |
-| `npm run build:css` | Meng-compile file Tailwind CSS dari `src/styles/app.css` ke `public/css/app.css` |
-| `npm test` | Menjalankan unit test AudioManager & BgmManager |
-| `npm run player` | Menjalankan background audio daemon (`bin/player.js`) |
-
----
-
-## Struktur Folder
-
-```
-StreamDeck/
-├── bin/
-│   ├── streamdeck.js        # CLI global executable
-│   └── player.js            # Standalone audio daemon (cloud receiver)
-├── media/                   # Direktori audio lokal (di-ignore oleh git)
-│   ├── sounds/              # File audio Soundboard (.mp3, .wav, .ogg, dll)
-│   └── bgm/                 # File musik latar BGM continuous looper
-├── public/                  # Static frontend served ke browser
-│   ├── css/
-│   │   └── app.css          # Hasil compile minified Tailwind CSS
-│   ├── js/                  # Native ES Modules
-│   │   ├── app.js           # Main UI bootstrap & event wiring
-│   │   ├── audio.js         # Client browser HTML5 Audio engine
-│   │   ├── deck.js          # DOM renderer (Scenes, Soundboard, BGM, Mixer)
-│   │   ├── socket.js        # Socket.IO client gateway & event dispatcher
-│   │   └── state.js         # Reactive state, theme, haptic, & wakelock
-│   ├── favicon.svg          # Favicon
-│   ├── index.html           # Single-page application entrypoint
-│   └── manifest.json        # PWA configuration
-├── scripts/
-│   ├── generateSounds.js    # Generator suara PCM WAV matematis
-│   ├── generateBgm.js       # Generator musik lo-fi WAV loop
-│   └── optimizeAssets.js    # FFmpeg auto-trim tool
-├── src/
-│   ├── config/              # Dynamic config layer & in-code defaults
-│   │   ├── defaults.js      # Base settings (port, obs, volume)
-│   │   └── index.js         # Config getter, updater, & env overlay
-│   ├── routes/
-│   │   └── api.js           # Express REST endpoints & Multer upload
-│   ├── services/            # Pure domain services
-│   │   ├── audioManager.js  # Host playback, ducking, & process cache
-│   │   ├── bgmManager.js    # Seamless BGM looper & volume engine
-│   │   ├── networkUtils.js  # IP discovery & Tailscale QR generator
-│   │   └── obsManager.js    # OBS WebSocket v5 EventEmitter client
-│   ├── sockets/
-│   │   └── index.js         # Realtime gateway & instant broadcast router
-│   ├── styles/
-│   │   └── app.css          # Tailwind source directives & CSS variables
-│   └── main.js              # Application entrypoint
-├── test/
-│   └── audioManager.test.js # Self-seeding integration test suite
-├── Dockerfile               # Production container definition
-├── docker-compose.yml       # Container orchestration
-├── start.bat                # Windows double-click shortcut
-└── package.json
-```
-
----
 
 ## Troubleshooting & FAQ
 
@@ -223,10 +191,14 @@ StreamDeck/
 - Periksa **Windows Firewall**: Buka *Windows Defender Firewall* -> izinkan Node.js berkomunikasi di jaringan privat/publik.
 
 #### 2. Status OBS menampilkan "OBS Off"
-- Pastikan aplikasi OBS Studio sudah terbuka di PC.
+- Pastikan aplikasi OBS Studio sudah terbuka di PC streamer.
 - Pastikan opsi *Enable WebSocket server* di OBS Studio sudah dicentang (Port `4455`).
 - Jika menggunakan password, masukkan password di tab **Settings** web StreamDeck lalu klik **Hubungkan ke OBS**.
 
-#### 3. Suara tidak berbunyi di speaker
-- Jika menggunakan server lokal: pastikan volume speaker PC Anda aktif.
-- Jika menggunakan server cloud (VPS): jalankan `node bin/player.js http://url-cloud` di PC lokal Anda, atau aktifkan toggle **Audio Client** pada tab Settings di browser HP.
+#### 3. Suara tidak berbunyi di speaker saat tombol ditekan
+- Pastikan daemon `streamdeck-player` sedang berjalan di PC Anda (di terminal atau via `start-player.vbs`).
+- Periksa log terminal `streamdeck-player` untuk memastikan terhubung ke server yang benar (`Target Server : http://...`).
+- Jika baru saja mengunggah file baru, periksa apakah file sudah selesai di-sync otomatis oleh player.
+
+#### 4. Men-scroll grid di smartphone memicu suara secara tidak sengaja
+- Pastikan Anda menggunakan versi terbaru. Sistem sudah dilengkapi detektor gesture (`attachTapListener`) yang memblokir pemicu suara saat layar digeser $> 8\text{px}$.
