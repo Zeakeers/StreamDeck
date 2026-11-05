@@ -116,9 +116,9 @@ class BgmManager {
       const script = `
 Add-Type -AssemblyName presentationCore
 $path = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${b64Path}'))
-$p = New-Object system.windows.media.mediaplayer
-$p.Open([System.Uri](Resolve-Path -LiteralPath $path).Path)
-$p.Volume = ${initialVol}
+      $resolved = (Resolve-Path -LiteralPath $path).ProviderPath
+      $p = New-Object system.windows.media.mediaplayer
+      $p.Open([System.Uri]$resolved)
 $p.Play()
 
 $in = [Console]::In
@@ -144,7 +144,8 @@ while ($null -ne ($line = $in.ReadLine())) {
   }
 }
 `;
-      const ps = spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], {
+      const encoded = Buffer.from(script, 'utf16le').toString('base64');
+      const ps = spawn('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe']
       });

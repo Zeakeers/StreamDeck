@@ -45,15 +45,26 @@ call node "%~dp0bin\player.js" "%SERVER_URL%" --sync-only
 set "VBS_FILE=%~dp0start-player.vbs"
 (
 echo Set WshShell = CreateObject("WScript.Shell"^)
+echo WshShell.Run "powershell -NoProfile -Command ""Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*bin\player.js*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }""", 0, True
 echo WshShell.Run "node ""%~dp0bin\player.js"" ""%SERVER_URL%""", 0, False
 ) > "%VBS_FILE%"
+
+:: Create background stopper script in project folder
+set "STOP_BAT=%~dp0stop-player.bat"
+(
+echo @echo off
+echo echo Stopping background StreamDeck player...
+echo powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*bin\player.js*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+echo echo Background player stopped.
+echo timeout /t 2 ^>nul
+) > "%STOP_BAT%"
 
 echo.
 echo ==================================================
 echo  Installation Complete
 echo  Global commands: 'streamdeck' and 'streamdeck-player'
 echo ==================================================
-echo How to start local audio player:
+echo How to use local audio player on Windows:
 echo.
 echo 1. Run in foreground (terminal):
 echo    streamdeck-player
@@ -62,10 +73,10 @@ echo.
 echo 2. Run silently in background (no console window):
 echo    Double-click 'start-player.vbs' in this folder
 echo.
-echo 3. Enable auto-start on boot (optional):
-echo    Press Win+R, type 'shell:startup', copy 'start-player.vbs' there
+echo 3. Stop background player:
+echo    Double-click 'stop-player.bat' in this folder
 echo.
-echo To stop background player:
-echo    Open Task Manager and end 'Node.js: Server-side JavaScript'
+echo 4. Enable auto-start on boot (optional):
+echo    Press Win+R, type 'shell:startup', copy 'start-player.vbs' there
 echo ==================================================
 pause

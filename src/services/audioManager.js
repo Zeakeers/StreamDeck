@@ -117,9 +117,9 @@ while ($null -ne ($line = $in.ReadLine())) {
     $vol = [double]$parts[2]
     $path = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($parts[3]))
     try {
+      $resolved = (Resolve-Path -LiteralPath $path).ProviderPath
       $p = New-Object system.windows.media.mediaplayer
-      $p.Open([System.Uri](Resolve-Path -LiteralPath $path).Path)
-      $p.Volume = $vol
+      $p.Open([System.Uri]$resolved)
       $p.Play()
       $players[$id] = $p
     } catch {}
@@ -139,11 +139,14 @@ while ($null -ne ($line = $in.ReadLine())) {
   }
 }
 `;
-    this.winWorker = spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], {
+    const encoded = Buffer.from(script, 'utf16le').toString('base64');
+    this.winWorker = spawn('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe']
     });
 
+    if (this.winWorker.stdout) this.winWorker.stdout.resume();
+    if (this.winWorker.stderr) this.winWorker.stderr.resume();
     this.winWorker.on('error', () => { this.winWorker = null; });
     this.winWorker.on('close', () => { this.winWorker = null; });
     return this.winWorker;
