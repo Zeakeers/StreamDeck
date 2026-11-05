@@ -93,10 +93,9 @@ Atau langsung tentukan URL server tujuan:
 
 Script akan:
 1. Memasang dependensi (`npm install`).
-2. Mendaftarkan perintah global terminal (`streamdeck` dan `streamdeck-player`).
-3. Men-sinkronkan semua file audio secara otomatis dari server.
-4. Menyiapkan systemd user service `streamdeck-player.service` (opsional diaktifkan).
-
+2. Mendaftarkan perintah global `streamdeck-player`.
+3. Men-sinkronkan semua file audio secara otomatis dari server ke PC lokal.
+4. Menyiapkan systemd user service `streamdeck-player.service`.
 ---
 
 ### 2. Instalasi Cepat (Windows)
@@ -105,13 +104,11 @@ Script akan:
 2. Masukkan URL server controller (default `http://localhost:3000` atau URL VPS).
 
 Script akan:
-1. Memasang dependensi & mendaftarkan command global Windows (`npm link`).
-2. Men-download semua aset media yang ada di server ke PC lokal.
-3. Menghasilkan shortcut background player:
+1. Memasang dependensi & mendaftarkan perintah global `streamdeck-player`.
+2. Men-sinkronkan semua file audio secara otomatis dari server ke PC lokal.
+3. Menghasilkan shortcut player:
    - **`start-player.vbs`**: Menjalankan player di latar belakang tanpa jendela CMD.
    - **`stop-player.bat`**: Menghentikan player di latar belakang.
-
----
 
 ### 3. Opsi Docker / VPS Cloud
 

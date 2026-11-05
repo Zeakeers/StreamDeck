@@ -56,25 +56,6 @@ EOF
 fi
 
 echo ""
-echo "=================================================="
-echo " Installation Complete"
-echo " Global commands: 'streamdeck' and 'streamdeck-player'"
-echo "=================================================="
-echo "How to start local audio player:"
+echo "Installation complete!"
+echo "Run with: streamdeck-player"
 echo ""
-echo "1. Run in foreground (terminal):"
-echo "   streamdeck-player"
-echo "   (or with custom URL: streamdeck-player http://ip:port)"
-echo ""
-if command -v systemctl >/dev/null 2>&1; then
-echo "2. Run as background service (manual start):"
-echo "   systemctl --user start streamdeck-player"
-echo ""
-echo "3. Enable auto-start on boot (optional):"
-echo "   systemctl --user enable --now streamdeck-player"
-echo ""
-echo "Check service status / logs:"
-echo "   systemctl --user status streamdeck-player"
-echo "   journalctl --user -u streamdeck-player -f"
-fi
-echo "=================================================="

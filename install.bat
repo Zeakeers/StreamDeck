@@ -60,23 +60,7 @@ echo timeout /t 2 ^>nul
 ) > "%STOP_BAT%"
 
 echo.
-echo ==================================================
-echo  Installation Complete
-echo  Global commands: 'streamdeck' and 'streamdeck-player'
-echo ==================================================
-echo How to use local audio player on Windows:
+echo Installation complete!
+echo Run with: streamdeck-player
 echo.
-echo 1. Run in foreground (terminal):
-echo    streamdeck-player
-echo    (or with custom URL: streamdeck-player http://ip:port)
-echo.
-echo 2. Run silently in background (no console window):
-echo    Double-click 'start-player.vbs' in this folder
-echo.
-echo 3. Stop background player:
-echo    Double-click 'stop-player.bat' in this folder
-echo.
-echo 4. Enable auto-start on boot (optional):
-echo    Press Win+R, type 'shell:startup', copy 'start-player.vbs' there
-echo ==================================================
 pause
