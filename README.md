@@ -95,7 +95,7 @@ Script akan:
 1. Memasang dependensi (`npm install`).
 2. Mendaftarkan perintah global `streamdeck-player`.
 3. Men-sinkronkan semua file audio secara otomatis dari server ke PC lokal.
-4. Menyiapkan systemd user service `streamdeck-player.service`.
+
 ---
 
 ### 2. Instalasi Cepat (Windows)
@@ -126,31 +126,13 @@ Audio daemon bertugas menerima sinyal dari controller HP dan membunyikan soundbo
 
 ### Di Linux / macOS
 
-**Opsi 1: Menjalankan di Terminal (Foreground dengan Log Real-time)**
+Cukup jalankan di terminal:
 ```bash
 streamdeck-player
-# atau dengan URL server spesifik:
-streamdeck-player http://100.83.249.40:3001
 ```
-
-**Opsi 2: Menjalankan sebagai Background Service (Systemd)**
-```bash
-# Nyalakan service saat dibutuhkan:
-systemctl --user start streamdeck-player
-
-# Cek status / log:
-systemctl --user status streamdeck-player
-journalctl --user -u streamdeck-player -f
-
-# Matikan service:
-systemctl --user stop streamdeck-player
-
-# (Opsional) Nyalakan otomatis setiap kali login:
-systemctl --user enable streamdeck-player
-```
+*(Atau dengan URL server custom: `streamdeck-player http://ip-server:3001`)*
 
 ---
-
 ### Di Windows
 
 **Opsi 1: Menjalankan di Terminal (Command Prompt / PowerShell)**
