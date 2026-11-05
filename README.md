@@ -1,6 +1,6 @@
-# DIY Stream Deck Web (Lokal & Tanpa Domain)
+# DIY Stream Deck Web
 
-Aplikasi Stream Deck berbasis web lokal untuk mengubah HP bekas (atau device kedua apapun) menjadi kontroler shortcut OBS Studio, Soundboard, dan BGM Player melalui browser jaringan lokal (LAN / Wi-Fi).
+Aplikasi Stream Deck modern berbasis web untuk mengubah smartphone (Android/iOS/tablet) menjadi kontroler shortcut **OBS Studio**, **Soundboard**, dan **BGM Player** melalui jaringan lokal (LAN / Wi-Fi) maupun cloud (Tailscale / VPS).
 
 UI dirancang clean dan minimalis mengadopsi gaya antarmuka **YouTube & Instagram Dark/Light Mode** menggunakan Tailwind CSS, tanpa warna neon berlebih.
 
@@ -8,190 +8,225 @@ UI dirancang clean dan minimalis mengadopsi gaya antarmuka **YouTube & Instagram
 
 ## Daftar Isi
 - [Fitur Utama](#fitur-utama)
-- [Persyaratan Sistem (Prasyarat)](#persyaratan-sistem-prasyarat)
-- [Cara Instalasi di Device/PC Lain](#cara-instalasi-di-devicepc-lain)
-- [Cara Menjalankan](#cara-menjalankan)
+- [Arsitektur Proyek](#arsitektur-proyek)
+- [Prasyarat Sistem](#prasyarat-sistem)
+- [Panduan Instalasi](#panduan-instalasi)
+  - [Opsi 1: Menjalankan Langsung di PC Lokal (Node.js)](#opsi-1-menjalankan-langsung-di-pc-lokal-nodejs)
+  - [Opsi 2: Menjalankan dengan Docker / Docker Compose](#opsi-2-menjalankan-dengan-docker--docker-compose)
+  - [Opsi 3: Deploy di Cloud / VPS + Local Audio Player](#opsi-3-deploy-di-cloud--vps--local-audio-player)
 - [Pengaturan OBS Studio](#pengaturan-obs-studio)
-- [Penggunaan di HP Bekas](#penggunaan-di-hp-bekas)
-- [Fitur Audio & BGM Looper](#fitur-audio--bgm-looper)
-- [Troubleshooting & FAQ](#troubleshooting--faq)
+- [Cara Penggunaan di Smartphone](#cara-penggunaan-di-smartphone)
+- [Daftar Perintah (Scripts)](#daftar-perintah-scripts)
 - [Struktur Folder](#struktur-folder)
+- [Troubleshooting & FAQ](#troubleshooting--faq)
 
 ---
 
 ## Fitur Utama
 
-- **100% Offline / Jaringan Lokal:** Berjalan tanpa domain dan tanpa internet. Cukup satu jaringan Wi-Fi/LAN antara PC dan HP.
-- **Koneksi Otomatis OBS Studio:** Terhubung via OBS WebSocket v5 bawaan OBS 28+.
-- **Ganti Scene Real-time:** Deteksi scene otomatis dengan highlight scene yang sedang aktif (*program output*).
-- **Audio Soundboard PC:** Diputar langsung di PC host sehingga otomatis masuk ke output stream OBS.
-- **BGM Background Music Looper:**
-  - Looping audio tanpa henti secara otomatis.
-  - Berganti lagu seketika saat lagu lain ditekan.
-  - Tombol **STOP BGM** untuk mematikan musik latar.
-- **Auto-Ducking dengan Transisi Cepat:** Volume BGM mengecil secara otomatis (*fade out*) saat Soundboard dibunyikan, lalu kembali normal (*fade in*) saat Soundboard selesai.
-- **Dual Volume Slider Independen:** Pengatur volume Soundboard dan BGM yang dapat digeser manual kapan saja.
-- **Kelola File Langsung via Web:** Upload, ubah nama, dan hapus file Soundboard maupun BGM langsung dari layar HP tanpa buka Windows Explorer.
-- **Gesture Swipe Antar-Deck:** Geser layar ke kiri atau kanan untuk berpindah antara Scenes dan Soundboard (aman, tidak kebablasan ke menu lain).
-- **Light & Dark Mode:** Pilihan tema Gelap atau Terang gaya YouTube/Instagram yang tersimpan di memori HP.
-- **Optimasi HP Bekas:** Screen WakeLock (mencegah layar redup otomatis), Fullscreen, dan Haptic Feedback (getar tombol).
+- **Zero-Latency Soundboard**: Respon instan (<15ms) berkat event broadcast non-blocking dan pointerdown trigger.
+- **BGM Continuous Looper**:
+  - Pemutaran musik latar otomatis looping tanpa henti.
+  - **Auto-Ducking**: Volume BGM otomatis mengecil saat Soundboard ditekan, dan kembali normal saat selesai.
+  - Kontrol volume independen untuk Soundboard & BGM.
+- **Dukungan Cloud & Remote**:
+  - Dapat di-deploy di VPS / Server Docker.
+  - Auto-detect IP Tailscale (`100.x.x.x`) dan mencetak QR Code khusus Tailscale di terminal.
+  - Dilengkapi daemon audio lokal (`bin/player.js`) agar server di cloud dapat membunyikan speaker PC lokal.
+  - Toggle audio browser (`sd_client_audio`) untuk memutar suara langsung di speaker HP jika diinginkan.
+- **Kontrol Penuh OBS Studio**: Ganti scene real-time, toggle Mute Mic, toggle Start/Stop Streaming & Recording.
+- **Manajemen Media Langsung via Web**: Upload, rename, dan delete file audio langsung dari HP.
+- **Optimasi HP Bekas**: Mendukung Fullscreen, Screen WakeLock (mencegah layar redup), dan Haptic feedback (getar).
 
 ---
 
-## Persyaratan Sistem (Prasyarat)
+## Arsitektur Proyek
 
-Sebelum memasang di PC baru, pastikan terpasang:
-1. **Node.js** (Versi 18 LTS ke atas atau v20 / v22): [Download di nodejs.org](https://nodejs.org/)
-2. **OBS Studio** (Versi 28 ke atas sudah built-in WebSocket v5): [Download di obsproject.com](https://obsproject.com/)
-3. **Koneksi Wi-Fi / Router Lokal:** PC dan HP harus terhubung ke Wi-Fi / hotspot yang sama.
+Sistem menggunakan arsitektur modular yang memisahkan tanggung jawab:
+- **`src/main.js`**: Server bootstrap minimalis (Express + Socket.IO).
+- **`src/config/`**: Sistem konfigurasi dinamis dengan in-code defaults (tanpa ketergantungan file statis).
+- **`src/services/`**: Domain services (`audioManager`, `bgmManager`, `obsManager`, `networkUtils`).
+- **`src/routes/`** & **`src/sockets/`**: Endpoint REST API dan gateway WebSocket.
+- **`public/js/`**: Frontend ES Modules modern (`state.js`, `audio.js`, `deck.js`, `socket.js`, `app.js`).
+- **`media/`**: Penyimpanan runtime file audio (`media/sounds/` & `media/bgm/`) yang terisolasi dari git repo.
 
 ---
 
-## Cara Instalasi di Device/PC Lain
+## Prasyarat Sistem
 
-### Opsi A: Menggunakan Git (Direkomendasikan)
-1. Buka Command Prompt (CMD) atau Terminal di PC baru.
-2. Clone repository resmi:
+1. **Node.js**: Versi 18 LTS atau 20+ ([Download Node.js](https://nodejs.org/)).
+2. **OBS Studio**: Versi 28 ke atas (sudah memiliki OBS WebSocket v5 bawaan) ([Download OBS](https://obsproject.com/)).
+3. **Koneksi Jaringan**: PC dan HP terhubung ke Wi-Fi yang sama, atau terhubung via Tailscale.
+
+---
+
+## Panduan Instalasi
+
+### Opsi 1: Menjalankan Langsung di PC Lokal (Node.js)
+
+1. **Clone repository**:
    ```bash
    git clone https://github.com/Zeakeers/StreamDeck.git streamdeck
    cd streamdeck
    ```
-3. Pasang dependency:
+
+2. **Pasang dependensi**:
    ```bash
    npm install
    ```
-4. *(Opsional)* Generate sample audio awal jika folder `sounds/` dan `bgm/` masih kosong:
+
+3. **Generate sample suara & BGM awal**:
+   *(File media sengaja di-ignore agar repo tetap ringan < 2MB)*
    ```bash
-   npm run gen-sounds
-   node scripts/generateBgm.js
+   npm run setup:media
    ```
-5. Daftarkan perintah shortcut global (agar bisa dipanggil cukup dengan mengetik `streamdeck`):
+
+4. **Jalankan server**:
    ```bash
-   npm link
+   npm start
    ```
+   *Atau di Windows:* Klik 2x file `start.bat`.
+
+5. Terminal akan menampilkan URL lokal (`http://localhost:3000`), URL LAN Wi-Fi, dan QR Code untuk discan dari HP.
 
 ---
 
-### Opsi B: Pindah File Manual (Copy-Paste / Flashdisk / ZIP)
-1. Copy seluruh folder project `streamdeck` ke PC baru (kecuali folder `node_modules` jika ukurannya terlalu besar).
-2. Buka folder tersebut di Command Prompt (CMD):
+### Opsi 2: Menjalankan dengan Docker / Docker Compose
+
+1. **Clone & masuk ke folder**:
    ```bash
-   cd "C:\path\ke\folder\streamdeck"
+   git clone https://github.com/Zeakeers/StreamDeck.git streamdeck
+   cd streamdeck
+   npm run setup:media
    ```
-3. Jalankan instalasi dependency:
+
+2. **Jalankan via Docker Compose**:
    ```bash
-   npm install
+   docker compose up -d --build
    ```
-4. Daftarkan perintah shortcut global:
-   ```bash
-   npm link
-   ```
+
+3. Server akan berjalan di port `3001` (dapat dikonfigurasi lewat environment variable `STREAMDECK_PORT`).
 
 ---
 
-## Cara Menjalankan
+### Opsi 3: Deploy di Cloud / VPS + Local Audio Player
 
-### Cara 1: Perintah Langsung (Bisa dari folder mana saja)
-Buka CMD atau PowerShell baru, lalu ketik:
-```bash
-streamdeck
-```
+Jika StreamDeck di-host di Cloud Server (misal `http://mc-server:3001` atau `http://100.83.249.40:3001`):
 
-### Cara 2: Klik Ganda
-Klik 2x file `start.bat` yang ada di dalam folder project.
+1. **Jalankan container StreamDeck di server cloud**:
+   ```bash
+   docker compose up -d
+   ```
 
-### Cara 3: Melalui NPM
-```bash
-npm start
-```
+2. **Buka HP**: Akses URL web controller di browser HP Anda.
 
-Terminal akan menampilkan:
-- URL lokal PC (`http://localhost:3000`)
-- URL jaringan untuk HP (contoh: `http://192.168.1.10:3000`)
-- **QR Code interaktif** yang bisa langsung discan kamera HP.
+3. **Jalankan Daemon Player di PC Lokal Anda** (agar suara soundboard tetap berbunyi di speaker PC / OBS Anda):
+   ```bash
+   node bin/player.js http://ip-server-cloud:3001
+   ```
+   *Daemon ini otomatis mendownload aset yang belum ada dan memutar audio dengan latensi sub-15ms via cache memori.*
 
 ---
 
 ## Pengaturan OBS Studio
 
-Cukup lakukan sekali saat pertama kali di PC baru:
+Lakukan langkah ini sekali di PC Anda:
 1. Buka **OBS Studio**.
-2. Masuk ke menu **Tools (Alat)** pada bilah atas -> pilih **WebSocket Server Settings**.
-3. Centang kotak **Enable WebSocket server**.
+2. Masuk ke menu **Tools (Alat)** -> **WebSocket Server Settings**.
+3. Centang **Enable WebSocket server**.
 4. Port default adalah `4455`.
 5. Pengaturan Autentikasi:
-   - **Paling Praktis:** Hilangkan centang pada **Enable Authentication** (tanpa password) -> klik **Apply/OK**.
-   - **Dengan Password:** Jika dicentang, klik **Show Connect Info** untuk melihat password. Masukkan password tersebut di tab **Setting** pada browser HP kamu lalu klik **Hubungkan ke OBS**.
+   - **Tanpa Password**: Hilangkan centang pada **Enable Authentication** -> klik **Apply/OK**.
+   - **Dengan Password**: Jika dicentang, klik **Show Connect Info** untuk menyalin password. Masukkan password tersebut pada tab **Settings** di web StreamDeck, lalu klik **Hubungkan ke OBS**.
 
 ---
 
-## Penggunaan di HP Bekas
+## Cara Penggunaan di Smartphone
 
-1. Sambungkan HP ke **Wi-Fi yang sama** dengan PC.
-2. Buka kamera HP dan scan QR Code di terminal (atau ketik URL IP PC ke browser Chrome/Safari).
-3. **Mode Layar Penuh:** Tekan ikon kotak (Fullscreen) di pojok kanan atas.
-4. **Cegah Layar Tidur:** Tekan ikon gembok/layar (Wake Lock) di kanan atas agar layar HP tidak mati saat live streaming.
-5. **Navigasi Geser:** Geser layar ke kiri atau kanan untuk berpindah antara tab **Scenes** dan **Soundboard**.
-
----
-
-## Fitur Audio & BGM Looper
-
-### Mengunggah Audio Baru
-- **Soundboard:** Masuk ke tab Soundboard -> klik `+ Upload Audio` -> pilih file suara (`.mp3`, `.wav`, `.ogg`, `.m4a`).
-- **BGM Looper:** Beralih ke sub-tab `BGM Looper` -> klik `+ Upload BGM` -> pilih file musik latar.
-- Nama file dengan spasi, huruf non-alfabet (Jepang, Korea, dll.) otomatis aman diproses.
-
-### Mengedit / Menghapus Lagu
-- Klik tombol **Kelola** pada tab Soundboard atau BGM.
-- Tekan ikon pensil untuk mengganti nama, atau ikon sampah untuk menghapus file.
-- Tekan **Selesai** untuk kembali ke mode tombol biasa.
+1. Sambungkan HP ke jaringan Wi-Fi yang sama dengan PC (atau nyalakan Tailscale di HP).
+2. Scan QR Code di terminal menggunakan kamera HP (atau buka URL yang tertera di Chrome/Safari).
+3. **Mode Fullscreen**: Tekan ikon layar penuh di pojok kanan atas.
+4. **Wake Lock**: Tekan ikon gembok/layar agar layar HP tetap menyala tanpa mati otomatis.
+5. **Navigasi Slider**: Geser layar ke kiri atau kanan untuk berpindah antara tab **Scenes** dan **Soundboard**.
+6. **Tema**: Pilih Dark Mode atau Light Mode sesuai selera.
 
 ---
 
-## Troubleshooting & FAQ
+## Daftar Perintah (Scripts)
 
-#### 1. "HP tidak bisa membuka alamat web / loading terus"
-- Pastikan HP dan PC berada di satu router/Wi-Fi yang sama.
-- Periksa Firewall Windows: Izinkan Node.js berkomunikasi di jaringan privat melalui *Windows Defender Firewall*.
-
-#### 2. "OBS Status menampilkan OBS Off"
-- Pastikan OBS Studio sudah dibuka.
-- Pastikan opsi *Enable WebSocket server* di OBS sudah dicentang (Port `4455`).
-
-#### 3. "Suara tidak terdengar saat ditekan"
-- Suara sengaja diputar langsung melalui speaker/audio PC agar masuk ke Desktop Audio OBS. Pastikan volume PC Anda tidak dalam kondisi mute.
+| Perintah | Fungsi |
+|---|---|
+| `npm start` | Menjalankan server aplikasi (`node src/main.js`) |
+| `npm run setup:media` | Men-generate sample suara (.wav) dan BGM looper awal |
+| `npm run build:css` | Meng-compile file Tailwind CSS dari `src/styles/app.css` ke `public/css/app.css` |
+| `npm test` | Menjalankan unit test AudioManager & BgmManager |
+| `npm run player` | Menjalankan background audio daemon (`bin/player.js`) |
 
 ---
 
 ## Struktur Folder
 
 ```
-streamdeck/
+StreamDeck/
 ├── bin/
-│   └── streamdeck.js     # Entry point command line runner
-├── lib/
-│   ├── audioManager.js   # Pemutar audio PC, auto-ducking & soundboard
-│   ├── bgmManager.js     # Pemutar BGM continuous loop & fade engine
-│   ├── networkUtils.js   # Deteksi IP lokal & QR code terminal
-│   └── obsManager.js     # WebSocket client OBS v5
-├── public/
-│   ├── app.js            # Frontend logic & WebSocket client
-│   ├── index.html        # UI Stream Deck (YouTube/Instagram style)
-│   ├── tailwind.css      # Hasil compile Tailwind CSS (offline-ready)
-│   ├── favicon.svg       # Favicon web
-│   └── manifest.json     # PWA manifest
-├── sounds/               # Direktori audio efek Soundboard
-├── bgm/                  # Direktori file musik latar BGM
+│   ├── streamdeck.js        # CLI global executable
+│   └── player.js            # Standalone audio daemon (cloud receiver)
+├── media/                   # Direktori audio lokal (di-ignore oleh git)
+│   ├── sounds/              # File audio Soundboard (.mp3, .wav, .ogg, dll)
+│   └── bgm/                 # File musik latar BGM continuous looper
+├── public/                  # Static frontend served ke browser
+│   ├── css/
+│   │   └── app.css          # Hasil compile minified Tailwind CSS
+│   ├── js/                  # Native ES Modules
+│   │   ├── app.js           # Main UI bootstrap & event wiring
+│   │   ├── audio.js         # Client browser HTML5 Audio engine
+│   │   ├── deck.js          # DOM renderer (Scenes, Soundboard, BGM, Mixer)
+│   │   ├── socket.js        # Socket.IO client gateway & event dispatcher
+│   │   └── state.js         # Reactive state, theme, haptic, & wakelock
+│   ├── favicon.svg          # Favicon
+│   ├── index.html           # Single-page application entrypoint
+│   └── manifest.json        # PWA configuration
 ├── scripts/
-│   ├── generateSounds.js # Generator sample suara bawaan
-│   └── generateBgm.js    # Generator sample BGM bawaan
+│   ├── generateSounds.js    # Generator suara PCM WAV matematis
+│   ├── generateBgm.js       # Generator musik lo-fi WAV loop
+│   └── optimizeAssets.js    # FFmpeg auto-trim tool
 ├── src/
-│   └── input.css         # Source Tailwind CSS & theme tokens
-├── config.json           # Konfigurasi port server & OBS
-├── server.js             # Backend server Express & Socket.io
-├── start.bat             # Shortcut double-click untuk Windows
-├── streamdeck.cmd        # Wrapper Windows executable
-├── tailwind.config.js    # Konfigurasi Tailwind CSS
+│   ├── config/              # Dynamic config layer & in-code defaults
+│   │   ├── defaults.js      # Base settings (port, obs, volume)
+│   │   └── index.js         # Config getter, updater, & env overlay
+│   ├── routes/
+│   │   └── api.js           # Express REST endpoints & Multer upload
+│   ├── services/            # Pure domain services
+│   │   ├── audioManager.js  # Host playback, ducking, & process cache
+│   │   ├── bgmManager.js    # Seamless BGM looper & volume engine
+│   │   ├── networkUtils.js  # IP discovery & Tailscale QR generator
+│   │   └── obsManager.js    # OBS WebSocket v5 EventEmitter client
+│   ├── sockets/
+│   │   └── index.js         # Realtime gateway & instant broadcast router
+│   ├── styles/
+│   │   └── app.css          # Tailwind source directives & CSS variables
+│   └── main.js              # Application entrypoint
+├── test/
+│   └── audioManager.test.js # Self-seeding integration test suite
+├── Dockerfile               # Production container definition
+├── docker-compose.yml       # Container orchestration
+├── start.bat                # Windows double-click shortcut
 └── package.json
 ```
+
+---
+
+## Troubleshooting & FAQ
+
+#### 1. HP tidak bisa membuka alamat web / loading lama
+- Pastikan HP dan PC berada di satu router Wi-Fi yang sama (atau keduanya terhubung ke Tailscale yang sama).
+- Periksa **Windows Firewall**: Buka *Windows Defender Firewall* -> izinkan Node.js berkomunikasi di jaringan privat/publik.
+
+#### 2. Status OBS menampilkan "OBS Off"
+- Pastikan aplikasi OBS Studio sudah terbuka di PC.
+- Pastikan opsi *Enable WebSocket server* di OBS Studio sudah dicentang (Port `4455`).
+- Jika menggunakan password, masukkan password di tab **Settings** web StreamDeck lalu klik **Hubungkan ke OBS**.
+
+#### 3. Suara tidak berbunyi di speaker
+- Jika menggunakan server lokal: pastikan volume speaker PC Anda aktif.
+- Jika menggunakan server cloud (VPS): jalankan `node bin/player.js http://url-cloud` di PC lokal Anda, atau aktifkan toggle **Audio Client** pada tab Settings di browser HP.
