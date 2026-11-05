@@ -85,7 +85,6 @@ Sistem menggunakan arsitektur modular yang memisahkan tanggung jawab:
    ```bash
    npm start
    ```
-   *Atau di Windows:* Klik 2x file `start.bat`.
 
 5. Terminal akan menampilkan URL lokal (`http://localhost:3000`), URL LAN Wi-Fi, dan QR Code untuk discan dari HP.
 
@@ -210,7 +209,8 @@ StreamDeck/
 │   └── audioManager.test.js # Self-seeding integration test suite
 ├── Dockerfile               # Production container definition
 ├── docker-compose.yml       # Container orchestration
-├── start.bat                # Windows double-click shortcut
+├── install.sh               # Linux/macOS installer & auto-sync
+├── install.bat              # Windows installer & auto-sync
 └── package.json
 ```
 
