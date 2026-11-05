@@ -9,6 +9,7 @@
     "start": "node src/main.js",
     "player": "node bin/player.js",
     "build:css": "tailwindcss -i ./src/styles/app.css -o ./public/css/app.css --minify",
+    "setup:media": "node scripts/generateSounds.js && node scripts/generateBgm.js",
     "gen-sounds": "node scripts/generateSounds.js",
     "test": "node test/audioManager.test.js"
   },
