@@ -4,8 +4,8 @@ const { spawnSync } = require('child_process');
 
 // ponytail: ffmpeg stream copy trim; upgrade to audio-tag aware trimmer if ID3 tags need preservation
 const rootDir = path.resolve(__dirname, '..');
-const bgmDir = path.join(rootDir, 'bgm');
-const soundsDir = path.join(rootDir, 'sounds');
+const bgmDir = path.join(rootDir, 'media', 'bgm');
+const soundsDir = path.join(rootDir, 'media', 'sounds');
 
 function trimFile(filePath, durationSec) {
   if (!fs.existsSync(filePath)) return;

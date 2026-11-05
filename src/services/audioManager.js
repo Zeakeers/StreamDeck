@@ -3,7 +3,7 @@ const path = require('path');
 const { spawn, spawnSync, exec } = require('child_process');
 
 class AudioManager {
-  constructor(soundsDirectory, configManager = null) {
+  constructor(soundsDirectory = path.resolve(__dirname, '../../media/sounds'), configManager = null) {
     this.soundsDir = soundsDirectory;
     this.configManager = configManager;
     this.bgmManager = null;

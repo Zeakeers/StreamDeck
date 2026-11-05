@@ -1,10 +1,10 @@
 const assert = require('assert');
 const path = require('path');
-const AudioManager = require('../lib/audioManager');
-const BgmManager = require('../lib/bgmManager');
+const AudioManager = require('../src/services/audioManager');
+const BgmManager = require('../src/services/bgmManager');
 
-const soundsDir = path.resolve(__dirname, '..', 'sounds');
-const bgmDir = path.resolve(__dirname, '..', 'bgm');
+const soundsDir = path.resolve(__dirname, '..', 'media', 'sounds');
+const bgmDir = path.resolve(__dirname, '..', 'media', 'bgm');
 
 // 1. AudioManager caching and retrieval
 const audio = new AudioManager(soundsDir);

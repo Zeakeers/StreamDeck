@@ -4,16 +4,16 @@ const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const { io } = require('socket.io-client');
-const AudioManager = require('../lib/audioManager');
-const BgmManager = require('../lib/bgmManager');
+const AudioManager = require('../src/services/audioManager');
+const BgmManager = require('../src/services/bgmManager');
 
 // ponytail: CLI daemon connects to cloud StreamDeck; upgrade to bidirectional OBS relay if local OBS bridging needed
 const rootDir = path.resolve(__dirname, '..');
 process.chdir(rootDir);
 
 const serverUrl = process.env.STREAMDECK_SERVER || process.argv[2] || 'http://100.83.249.40:3001';
-const soundsDir = path.join(rootDir, 'sounds');
-const bgmDir = path.join(rootDir, 'bgm');
+const soundsDir = path.join(rootDir, 'media', 'sounds');
+const bgmDir = path.join(rootDir, 'media', 'bgm');
 
 const localSounds = new Set(fs.existsSync(soundsDir) ? fs.readdirSync(soundsDir) : []);
 const localBgm = new Set(fs.existsSync(bgmDir) ? fs.readdirSync(bgmDir) : []);

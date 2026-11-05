@@ -1,12 +1,12 @@
 {
   "name": "streamdeck",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/main.js",
   "bin": {
     "streamdeck": "./bin/streamdeck.js"
   },
   "scripts": {
-    "start": "node server.js",
+    "start": "node src/main.js",
     "player": "node bin/player.js",
     "build:css": "tailwindcss -i ./src/input.css -o ./public/tailwind.css --minify",
     "gen-sounds": "node scripts/generateSounds.js",

@@ -3,7 +3,7 @@ const path = require('path');
 const { spawn, spawnSync, exec } = require('child_process');
 
 class BgmManager {
-  constructor(bgmDirectory, defaultVolume = 0.5) {
+  constructor(bgmDirectory = path.resolve(__dirname, '../../media/bgm'), defaultVolume = 0.5) {
     this.bgmDir = bgmDirectory;
     this.baseVolume = Math.max(0, Math.min(1, Number(defaultVolume) || 0.5));
     this.currentVolume = this.baseVolume;

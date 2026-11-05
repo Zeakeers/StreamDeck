@@ -30,7 +30,7 @@ function createWavBuffer(samples, sampleRate = 44100) {
   return buffer;
 }
 
-const bgmDir = path.join(__dirname, '..', 'bgm');
+const bgmDir = path.join(__dirname, '..', 'media', 'bgm');
 if (!fs.existsSync(bgmDir)) {
   fs.mkdirSync(bgmDir, { recursive: true });
 }
