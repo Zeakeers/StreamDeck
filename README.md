@@ -20,8 +20,6 @@ UI dirancang clean dan minimalis mengadopsi gaya antarmuka **YouTube & Instagram
 - [Sistem Sinkronisasi Otomatis (Auto-Sync)](#sistem-sinkronisasi-otomatis-auto-sync)
 - [Pengaturan OBS Studio](#pengaturan-obs-studio)
 - [Cara Penggunaan di Smartphone](#cara-penggunaan-di-smartphone)
-- [Daftar Perintah (Scripts)](#daftar-perintah-scripts)
-- [Struktur Folder](#struktur-folder)
 - [Troubleshooting & FAQ](#troubleshooting--faq)
 
 ---
@@ -206,70 +204,6 @@ Lakukan langkah ini sekali di OBS PC Anda:
 
 ---
 
-## Daftar Perintah (Scripts)
-
-| Perintah | Fungsi |
-|---|---|
-| `npm start` / `streamdeck` | Menjalankan server aplikasi StreamDeck web (`node src/main.js`) |
-| `npm run player` / `streamdeck-player` | Menjalankan audio player daemon (`bin/player.js`) |
-| `npm run setup:media` | Men-generate sample suara (.wav) dan BGM looper awal untuk testing |
-| `npm run build:css` | Meng-compile dan minify Tailwind CSS dari `src/styles/app.css` ke `public/css/app.css` |
-| `npm test` | Menjalankan unit test integration AudioManager & BgmManager |
-
----
-
-## Struktur Folder
-
-```
-StreamDeck/
-├── bin/
-│   ├── streamdeck.js        # CLI global executable server
-│   └── player.js            # Standalone audio daemon & auto-sync engine
-├── media/                   # Direktori audio lokal (di-ignore oleh git)
-│   ├── sounds/              # File audio Soundboard (.mp3, .wav, .ogg, dll)
-│   └── bgm/                 # File musik latar BGM continuous looper
-├── public/                  # Static frontend served ke browser smartphone
-│   ├── css/
-│   │   └── app.css          # Hasil compile minified Tailwind CSS
-│   ├── js/                  # Native ES Modules
-│   │   ├── app.js           # UI bootstrap, tab switcher & sliders
-│   │   ├── audio.js         # Interface audio routing (CLI sink only)
-│   │   ├── deck.js          # DOM renderer & gesture-safe tap listeners
-│   │   ├── socket.js        # Socket.IO client gateway & event dispatcher
-│   │   └── state.js         # Reactive state, theme, haptic, & wakelock
-│   ├── favicon.svg          # Favicon
-│   ├── index.html           # Single-page application entrypoint
-│   └── manifest.json        # PWA configuration
-├── scripts/
-│   ├── generateSounds.js    # Generator suara PCM WAV matematis
-│   ├── generateBgm.js       # Generator musik lo-fi WAV loop
-│   └── optimizeAssets.js    # FFmpeg auto-trim tool
-├── src/
-│   ├── config/              # Dynamic config layer & in-code defaults
-│   │   ├── defaults.js      # Base settings (port, obs, volume)
-│   │   └── index.js         # Config getter, updater, & env overlay
-│   ├── routes/
-│   │   └── api.js           # Express REST endpoints & Multer upload
-│   ├── services/            # Pure domain services
-│   │   ├── audioManager.js  # SFX playback, process caching, ducking triggers
-│   │   ├── bgmManager.js    # Seamless BGM looper & platform volume engine
-│   │   ├── networkUtils.js  # IP discovery & Tailscale QR generator
-│   │   └── obsManager.js    # OBS WebSocket v5 EventEmitter client
-│   ├── sockets/
-│   │   └── index.js         # Realtime gateway & instant broadcast router
-│   ├── styles/
-│   │   └── app.css          # Tailwind source directives & CSS variables
-│   └── main.js              # Server application entrypoint
-├── test/
-│   └── audioManager.test.js # Self-seeding integration test suite
-├── Dockerfile               # Production container definition
-├── docker-compose.yml       # Container orchestration
-├── install.sh               # Linux/macOS installer & auto-sync setup
-├── install.bat              # Windows installer & auto-sync setup
-└── package.json
-```
-
----
 
 ## Troubleshooting & FAQ
 
