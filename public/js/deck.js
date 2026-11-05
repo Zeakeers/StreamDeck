@@ -19,6 +19,33 @@ export function toggleBgmEditMode() {
 let socketRef = null;
 export function setSocket(s) { socketRef = s; }
 
+export function attachTapListener(element, callback) {
+  let startX = 0;
+  let startY = 0;
+  let isMoved = false;
+
+  element.addEventListener('pointerdown', (e) => {
+    startX = e.clientX;
+    startY = e.clientY;
+    isMoved = false;
+  }, { passive: true });
+
+  element.addEventListener('pointermove', (e) => {
+    if (!isMoved && (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8)) {
+      isMoved = true;
+    }
+  }, { passive: true });
+
+  element.addEventListener('pointercancel', () => {
+    isMoved = true;
+  });
+
+  element.addEventListener('click', (e) => {
+    if (isMoved || isSwiping) return;
+    callback(e);
+  });
+}
+
 // --- Rename Modal State ---
 let currentRenamingItem = null;
 let currentRenamingType = 'sound';
@@ -190,8 +217,7 @@ export function renderScenes() {
       ${isActive ? '<span class="deck-key-badge">ACTIVE</span>' : ''}
     `;
 
-    key.addEventListener('pointerdown', () => {
-      if (isSwiping) return;
+    attachTapListener(key, () => {
       haptic(35);
       if (socketRef) socketRef.emit('obs:scene', sceneName);
     });
@@ -252,29 +278,19 @@ export function renderSoundboard() {
       <span class="deck-key-badge">${sound.extension}</span>
     `;
 
-    let triggeredByPointer = false;
-    key.addEventListener('pointerdown', (e) => {
-      if (isSwiping || soundEditMode || e.target.closest('.btn-key-tool')) return;
-      triggeredByPointer = true;
-      haptic(30);
-      key.classList.add('sound-playing');
-      setTimeout(() => key.classList.remove('sound-playing'), 450);
-
-      const vol = parseFloat(soundboardVol?.value) || 0.8;
-      if (socketRef) socketRef.emit('sound:play', { filename: sound.filename, volume: vol });
-    });
-
-    key.addEventListener('click', (e) => {
-      if (isSwiping || e.target.closest('.btn-key-tool')) return;
+    attachTapListener(key, (e) => {
+      if (e.target.closest('.btn-key-tool')) return;
       if (soundEditMode) {
         haptic(30);
         openRenameModal(sound, 'sound');
-      } else if (!triggeredByPointer) {
+      } else {
         haptic(30);
+        key.classList.add('sound-playing');
+        setTimeout(() => key.classList.remove('sound-playing'), 450);
+
         const vol = parseFloat(soundboardVol?.value) || 0.8;
         if (socketRef) socketRef.emit('sound:play', { filename: sound.filename, volume: vol });
       }
-      triggeredByPointer = false;
     });
 
     if (soundEditMode) {
@@ -400,28 +416,12 @@ export function renderBgm() {
       <span class="deck-key-badge">${isCurrentLooping ? 'LOOPING' : track.extension}</span>
     `;
 
-    let triggeredByPointer = false;
-    key.addEventListener('pointerdown', (e) => {
-      if (isSwiping || bgmEditMode || e.target.closest('.btn-key-tool')) return;
-      triggeredByPointer = true;
-      haptic(35);
-      if (isCurrentLooping) {
-        stopBgmDirect();
-        if (socketRef) socketRef.emit('bgm:stop');
-      } else {
-        const bgmVolSlider = document.getElementById('bgm-vol');
-        const vol = parseFloat(bgmVolSlider?.value) || 0.5;
-        playBgmDirect(track.filename, vol);
-        if (socketRef) socketRef.emit('bgm:play', track.filename);
-      }
-    });
-
-    key.addEventListener('click', (e) => {
-      if (isSwiping || e.target.closest('.btn-key-tool')) return;
+    attachTapListener(key, (e) => {
+      if (e.target.closest('.btn-key-tool')) return;
       if (bgmEditMode) {
         haptic(30);
         openRenameModal(track, 'bgm');
-      } else if (!triggeredByPointer) {
+      } else {
         haptic(35);
         if (isCurrentLooping) {
           stopBgmDirect();
@@ -433,7 +433,6 @@ export function renderBgm() {
           if (socketRef) socketRef.emit('bgm:play', track.filename);
         }
       }
-      triggeredByPointer = false;
     });
 
     if (bgmEditMode) {

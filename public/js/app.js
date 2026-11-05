@@ -214,21 +214,11 @@ const sectionSoundboard = document.getElementById('section-soundboard');
 const sectionBgm = document.getElementById('section-bgm');
 
 if (btnModeSoundboard && btnModeBgm) {
-  btnModeSoundboard.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    haptic(25);
-    switchSubMode('soundboard');
-  });
   btnModeSoundboard.addEventListener('click', () => {
     haptic(25);
     switchSubMode('soundboard');
   });
 
-  btnModeBgm.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    haptic(25);
-    switchSubMode('bgm');
-  });
   btnModeBgm.addEventListener('click', () => {
     haptic(25);
     switchSubMode('bgm');

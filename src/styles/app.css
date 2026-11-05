@@ -173,6 +173,7 @@ body {
   cursor: pointer;
   transition: transform 0.08s ease, background-color 0.12s ease, border-color 0.12s ease;
   overflow: hidden;
+  touch-action: pan-x pan-y;
 }
 
 .deck-key:active {
