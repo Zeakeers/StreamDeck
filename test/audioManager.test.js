@@ -55,4 +55,38 @@ const stopResult = audio.stopAll();
 assert.strictEqual(audio.activeSoundCount, 0, 'activeSoundCount must reset to 0');
 assert.strictEqual(stopResult.status, 'stopped');
 
+// 7. Missing file play guard
+assert.rejects(async () => audio.play('nonexistent-audio-xyz.mp3'), /File audio tidak ditemukan/);
+
+// 8. Rename & Delete sounds in temp directory
+const fs = require('fs');
+const os = require('os');
+const tempAudioDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-audio-test-'));
+const tempAudio = new AudioManager(tempAudioDir);
+const testFile = 'test-horn.mp3';
+fs.writeFileSync(path.join(tempAudioDir, testFile), 'audio-bytes');
+
+try {
+  assert.strictEqual(tempAudio.getSounds().length, 1);
+
+  const renamed = tempAudio.renameSound(testFile, 'Party Horn');
+  assert.strictEqual(renamed.success, true);
+  assert.strictEqual(renamed.newFilename, 'Party Horn.mp3');
+  assert.ok(fs.existsSync(path.join(tempAudioDir, 'Party Horn.mp3')));
+
+  // Negative collision scenario
+  fs.writeFileSync(path.join(tempAudioDir, 'other.mp3'), 'audio-bytes-2');
+  assert.throws(() => tempAudio.renameSound('Party Horn.mp3', 'other'), /sudah ada/);
+
+  assert.throws(() => tempAudio.renameSound('Party Horn.mp3', '   '), /Nama baru tidak valid/);
+  assert.throws(() => tempAudio.renameSound('missing.mp3', 'Valid Name'), /tidak ditemukan/);
+
+  const deleted = tempAudio.deleteSound('Party Horn.mp3');
+  assert.strictEqual(deleted.success, true);
+  assert.strictEqual(fs.existsSync(path.join(tempAudioDir, 'Party Horn.mp3')), false);
+  assert.throws(() => tempAudio.deleteSound('missing.mp3'), /tidak ditemukan/);
+} finally {
+  fs.rmSync(tempAudioDir, { recursive: true, force: true });
+}
+
 console.log('All tests passed.');

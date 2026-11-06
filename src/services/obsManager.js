@@ -66,6 +66,14 @@ class ObsManager extends EventEmitter {
         muted: data.inputMuted
       });
     });
+
+    this.obs.on('SceneItemEnableStateChanged', (data) => {
+      this.emit('sceneItemEnableStateChanged', {
+        sceneName: data.sceneName,
+        sceneItemId: data.sceneItemId,
+        sceneItemEnabled: data.sceneItemEnabled
+      });
+    });
   }
 
   async connect(host = '127.0.0.1', port = 4455, password = '') {
@@ -186,6 +194,43 @@ class ObsManager extends EventEmitter {
     const res = await this.obs.call('ToggleStream');
     this.isStreaming = res.outputActive;
     return { isStreaming: res.outputActive };
+  }
+
+  async getSceneItemList(sceneName) {
+    if (!this.isConnected) throw new Error('OBS belum terhubung');
+    const targetScene = sceneName || this.currentScene;
+    if (!targetScene) throw new Error('Scene belum dipilih atau tidak ada');
+    const res = await this.obs.call('GetSceneItemList', { sceneName: targetScene });
+    return (res.sceneItems || []).map((item) => ({
+      sceneItemId: item.sceneItemId,
+      sourceName: item.sourceName,
+      sceneItemEnabled: item.sceneItemEnabled,
+      inputKind: item.inputKind || null,
+      isGroup: item.isGroup || false
+    }));
+  }
+
+  async setSceneItemEnabled(sceneName, sceneItemId, enabled) {
+    if (!this.isConnected) throw new Error('OBS belum terhubung');
+    const targetScene = sceneName || this.currentScene;
+    await this.obs.call('SetSceneItemEnabled', {
+      sceneName: targetScene,
+      sceneItemId: Number(sceneItemId),
+      sceneItemEnabled: Boolean(enabled)
+    });
+    return { sceneName: targetScene, sceneItemId: Number(sceneItemId), sceneItemEnabled: Boolean(enabled) };
+  }
+
+  async toggleSceneItem(sceneName, sceneItemId) {
+    if (!this.isConnected) throw new Error('OBS belum terhubung');
+    const targetScene = sceneName || this.currentScene;
+    // ponytail: fetches item state on demand; upgrade to local map cache if roundtrip feels sluggish
+    const info = await this.obs.call('GetSceneItemEnabled', {
+      sceneName: targetScene,
+      sceneItemId: Number(sceneItemId)
+    });
+    const nextState = !info.sceneItemEnabled;
+    return this.setSceneItemEnabled(targetScene, sceneItemId, nextState);
   }
 }
 

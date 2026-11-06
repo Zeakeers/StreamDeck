@@ -1,4 +1,4 @@
-import { state, haptic } from './state.js';
+import { state, haptic, saveCustomSources } from './state.js';
 import { playBgmDirect, stopBgmDirect } from './audio.js';
 
 export let isSwiping = false;
@@ -14,6 +14,17 @@ export let bgmEditMode = false;
 export function toggleBgmEditMode() {
   bgmEditMode = !bgmEditMode;
   return bgmEditMode;
+}
+
+export let sourcesEditMode = false;
+export function toggleSourcesEditMode() {
+  sourcesEditMode = !sourcesEditMode;
+  const label = document.getElementById('manage-sources-label');
+  if (label) label.textContent = sourcesEditMode ? 'Selesai' : 'Kelola';
+  const btn = document.getElementById('btn-manage-sources');
+  if (btn) btn.classList.toggle('active-action', sourcesEditMode);
+  renderCustomSources();
+  return sourcesEditMode;
 }
 
 let socketRef = null;
@@ -223,6 +234,271 @@ export function renderScenes() {
     });
 
     scenesGrid.appendChild(key);
+  });
+}
+
+// --- Render Custom Sources Grid ---
+export function renderCustomSources() {
+  const grid = document.getElementById('custom-sources-grid');
+  const empty = document.getElementById('custom-sources-empty');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const sources = state.customSources || [];
+
+  if (sources.length === 0) {
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  sources.forEach((item, index) => {
+    const isEnabled = item.enabled !== false;
+    const key = document.createElement('div');
+    key.className = `deck-key source-key ${isEnabled ? 'source-active' : 'source-hidden'} ${sourcesEditMode ? 'is-editing' : ''}`;
+    key.setAttribute('data-scene', item.sceneName);
+    key.setAttribute('data-item-id', item.sceneItemId);
+
+    let toolsHtml = '';
+    if (sourcesEditMode) {
+      toolsHtml = `
+        <div class="deck-key-edit-tools">
+          <span></span>
+          <button class="btn-key-tool btn-tool-delete" title="Hapus dari Deck">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      `;
+    }
+
+    const eyeIcon = isEnabled
+      ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+           <circle cx="12" cy="12" r="3"></circle>
+         </svg>`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+           <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+           <line x1="1" y1="1" x2="23" y2="23"></line>
+         </svg>`;
+
+    const badgeClass = isEnabled
+      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+      : 'bg-neutral-800 text-neutral-400 border border-neutral-700';
+
+    key.innerHTML = `
+      ${toolsHtml}
+      <div class="deck-key-icon">${eyeIcon}</div>
+      <div class="deck-key-label truncate max-w-full px-1">${item.sourceName}</div>
+      <div class="deck-key-sub truncate max-w-full px-1">${item.sceneName}</div>
+      <span class="deck-key-badge ${badgeClass}">${isEnabled ? 'SHOW' : 'HIDE'}</span>
+    `;
+
+    attachTapListener(key, () => {
+      haptic(35);
+      if (sourcesEditMode) {
+        state.customSources.splice(index, 1);
+        saveCustomSources(state.customSources);
+        renderCustomSources();
+        return;
+      }
+
+      // ponytail: optimistic toggle updates UI immediately; reverts if socket request fails
+      item.enabled = !isEnabled;
+      saveCustomSources(state.customSources);
+      renderCustomSources();
+
+      if (socketRef) {
+        socketRef.emit('obs:toggleSceneItem', {
+          sceneName: item.sceneName,
+          sceneItemId: item.sceneItemId
+        }, (res) => {
+          if (res?.error) {
+            item.enabled = isEnabled;
+            saveCustomSources(state.customSources);
+            renderCustomSources();
+          }
+        });
+      }
+    });
+
+    grid.appendChild(key);
+  });
+}
+
+export function syncCustomSources(socket = socketRef) {
+  const sock = socket || socketRef;
+  if (!sock || !state.obs.connected || !state.customSources.length) return;
+  const scenes = [...new Set(state.customSources.map((s) => s.sceneName))];
+  scenes.forEach((sceneName) => {
+    sock.emit('obs:getSceneItems', sceneName, (res) => {
+      if (!res?.success || !Array.isArray(res.items)) return;
+      let changed = false;
+      state.customSources.forEach((cs) => {
+        if (cs.sceneName === sceneName) {
+          const match = res.items.find((it) => it.sceneItemId === cs.sceneItemId || it.sourceName === cs.sourceName);
+          if (match) {
+            cs.sceneItemId = match.sceneItemId;
+            if (cs.enabled !== match.sceneItemEnabled) {
+              cs.enabled = match.sceneItemEnabled;
+              changed = true;
+            }
+          }
+        }
+      });
+      if (changed) {
+        saveCustomSources(state.customSources);
+        renderCustomSources();
+      }
+    });
+  });
+}
+
+export function openSourceModal(socket = socketRef) {
+  const modal = document.getElementById('source-modal');
+  const sceneSelect = document.getElementById('source-modal-scene-select');
+  if (!modal || !sceneSelect) return;
+
+  const scenes = state.obs.scenes || [];
+  sceneSelect.innerHTML = '';
+  if (scenes.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = state.obs.connected ? 'Tidak ada scene' : 'OBS Belum Terhubung';
+    sceneSelect.appendChild(opt);
+  } else {
+    scenes.forEach((name) => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      if (name === state.obs.currentScene) opt.selected = true;
+      sceneSelect.appendChild(opt);
+    });
+  }
+
+  modal.style.display = 'flex';
+  loadSceneItemsIntoModal(sceneSelect.value, socket);
+}
+
+export function closeSourceModal() {
+  const modal = document.getElementById('source-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+export function loadSceneItemsIntoModal(sceneName, socket = socketRef) {
+  const itemsContainer = document.getElementById('source-modal-items');
+  const emptyNotice = document.getElementById('source-modal-empty');
+  const loadingNotice = document.getElementById('source-modal-loading');
+  if (!itemsContainer) return;
+
+  itemsContainer.innerHTML = '';
+  if (!sceneName || !state.obs.connected) {
+    if (emptyNotice) {
+      emptyNotice.textContent = state.obs.connected ? 'Pilih scene terlebih dahulu.' : 'OBS belum terhubung.';
+      emptyNotice.style.display = 'block';
+    }
+    if (loadingNotice) loadingNotice.style.display = 'none';
+    return;
+  }
+
+  if (loadingNotice) loadingNotice.style.display = 'block';
+  if (emptyNotice) emptyNotice.style.display = 'none';
+
+  const sock = socket || socketRef;
+  if (!sock) {
+    if (loadingNotice) loadingNotice.style.display = 'none';
+    return;
+  }
+
+  sock.emit('obs:getSceneItems', sceneName, (res) => {
+    if (loadingNotice) loadingNotice.style.display = 'none';
+    if (!res?.success || !Array.isArray(res.items) || res.items.length === 0) {
+      if (emptyNotice) {
+        emptyNotice.textContent = res?.error || 'Tidak ada source ditemukan di scene ini.';
+        emptyNotice.style.display = 'block';
+      }
+      return;
+    }
+
+    if (emptyNotice) emptyNotice.style.display = 'none';
+
+    res.items.forEach((item) => {
+      const isAlreadyAdded = state.customSources.some(
+        (cs) => cs.sceneName === sceneName && (cs.sceneItemId === item.sceneItemId || cs.sourceName === item.sourceName)
+      );
+      const isEnabled = item.sceneItemEnabled;
+
+      const row = document.createElement('div');
+      row.className = 'source-modal-item';
+
+      const eyeIcon = isEnabled
+        ? `<svg viewBox="0 0 24 24" class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2">
+             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+             <circle cx="12" cy="12" r="3"></circle>
+           </svg>`
+        : `<svg viewBox="0 0 24 24" class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" stroke-width="2">
+             <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+             <line x1="1" y1="1" x2="23" y2="23"></line>
+           </svg>`;
+
+      row.innerHTML = `
+        <div class="source-modal-item-info">
+          <button class="btn-toggle-row-eye w-7 h-7 rounded-lg bg-[var(--app-surface)] border border-[var(--app-border)] flex items-center justify-center hover:bg-[var(--app-card-hover)] transition flex-shrink-0" title="Toggle Show/Hide di OBS">
+            ${eyeIcon}
+          </button>
+          <div class="min-w-0 flex-1">
+            <div class="text-xs font-bold text-[var(--app-text)] truncate">${item.sourceName}</div>
+            <div class="text-[0.65rem] text-[var(--app-text-dim)] truncate">${item.inputKind || 'Source Item'}</div>
+          </div>
+        </div>
+        <button class="btn-pick-source py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center gap-1 active:scale-95 flex-shrink-0 ${isAlreadyAdded ? 'bg-neutral-800 text-neutral-400 hover:text-red-400 border border-neutral-700' : 'bg-[var(--app-chip-active-bg)] text-[var(--app-chip-active-text)]'}">
+          ${isAlreadyAdded ? '✓ Terpasang' : '+ Pilih'}
+        </button>
+      `;
+
+      const eyeBtn = row.querySelector('.btn-toggle-row-eye');
+      eyeBtn.addEventListener('click', () => {
+        haptic(25);
+        sock.emit('obs:toggleSceneItem', { sceneName, sceneItemId: item.sceneItemId }, (toggleRes) => {
+          if (toggleRes?.success) {
+            item.sceneItemEnabled = toggleRes.sceneItemEnabled;
+            state.customSources.forEach((cs) => {
+              if (cs.sceneName === sceneName && cs.sceneItemId === item.sceneItemId) {
+                cs.enabled = toggleRes.sceneItemEnabled;
+              }
+            });
+            saveCustomSources(state.customSources);
+            renderCustomSources();
+            loadSceneItemsIntoModal(sceneName, sock);
+          }
+        });
+      });
+
+      const pickBtn = row.querySelector('.btn-pick-source');
+      pickBtn.addEventListener('click', () => {
+        haptic(30);
+        const idx = state.customSources.findIndex(
+          (cs) => cs.sceneName === sceneName && (cs.sceneItemId === item.sceneItemId || cs.sourceName === item.sourceName)
+        );
+
+        if (idx >= 0) {
+          state.customSources.splice(idx, 1);
+        } else {
+          state.customSources.push({
+            sceneName,
+            sceneItemId: item.sceneItemId,
+            sourceName: item.sourceName,
+            enabled: item.sceneItemEnabled
+          });
+        }
+        saveCustomSources(state.customSources);
+        renderCustomSources();
+        loadSceneItemsIntoModal(sceneName, sock);
+      });
+
+      itemsContainer.appendChild(row);
+    });
   });
 }
 

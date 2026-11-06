@@ -16,6 +16,11 @@ import {
   renderSoundboard,
   renderBgm,
   renderMixer,
+  renderCustomSources,
+  openSourceModal,
+  closeSourceModal,
+  loadSceneItemsIntoModal,
+  toggleSourcesEditMode,
   closeRenameModal,
   confirmRename
 } from './deck.js';
@@ -454,6 +459,57 @@ if (renameInput) {
     }
   });
 }
+
+// --- Custom Sources & Modal Controls ---
+const btnSelectSource = document.getElementById('btn-select-source');
+const btnManageSources = document.getElementById('btn-manage-sources');
+const btnCloseSourceModal = document.getElementById('btn-close-source-modal');
+const btnRefreshModalSources = document.getElementById('btn-refresh-modal-sources');
+const sourceModalSceneSelect = document.getElementById('source-modal-scene-select');
+const sourceModal = document.getElementById('source-modal');
+
+if (btnSelectSource) {
+  btnSelectSource.addEventListener('click', () => {
+    haptic(30);
+    openSourceModal(socket);
+  });
+}
+
+if (btnManageSources) {
+  btnManageSources.addEventListener('click', () => {
+    haptic(30);
+    toggleSourcesEditMode();
+  });
+}
+
+if (btnCloseSourceModal) {
+  btnCloseSourceModal.addEventListener('click', () => {
+    haptic(20);
+    closeSourceModal();
+  });
+}
+
+if (sourceModal) {
+  sourceModal.addEventListener('click', (e) => {
+    if (e.target === sourceModal) closeSourceModal();
+  });
+}
+
+if (btnRefreshModalSources) {
+  btnRefreshModalSources.addEventListener('click', () => {
+    haptic(25);
+    if (sourceModalSceneSelect) loadSceneItemsIntoModal(sourceModalSceneSelect.value, socket);
+  });
+}
+
+if (sourceModalSceneSelect) {
+  sourceModalSceneSelect.addEventListener('change', (e) => {
+    haptic(20);
+    loadSceneItemsIntoModal(e.target.value, socket);
+  });
+}
+
+renderCustomSources();
 
 // --- Settings Form (OBS Connection) ---
 const obsHostInput = document.getElementById('obs-host');

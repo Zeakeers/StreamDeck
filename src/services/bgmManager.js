@@ -243,6 +243,8 @@ while ($null -ne ($line = $in.ReadLine())) {
     } else if (this.isPlaying && this.isDucked) {
       const ducked = Math.max(0.03, this.baseVolume * 0.18);
       this.applyVolumeImmediate(ducked);
+    } else if (!this.isDucked) {
+      this.currentVolume = this.baseVolume;
     }
     return this.getState();
   }
