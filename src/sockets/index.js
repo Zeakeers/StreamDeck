@@ -7,6 +7,7 @@ function setupSockets(io, { obsManager, audioManager, bgmManager, configService 
   obsManager.on('recordStateChanged', (data) => io.emit('obs:recordStateChanged', data));
   obsManager.on('streamStateChanged', (data) => io.emit('obs:streamStateChanged', data));
   obsManager.on('inputMuteChanged', (data) => io.emit('obs:inputMuteChanged', data));
+  obsManager.on('sceneItemEnableStateChanged', (data) => io.emit('obs:sceneItemEnableStateChanged', data));
 
   io.on('connection', (socket) => {
     const config = configService.getConfig();
@@ -59,6 +60,37 @@ function setupSockets(io, { obsManager, audioManager, bgmManager, configService 
     socket.on('obs:refresh', async (callback) => {
       await obsManager.refreshState();
       if (typeof callback === 'function') callback({ success: true, state: obsManager.getState() });
+    });
+
+    socket.on('obs:getSceneItems', async (sceneName, callback) => {
+      try {
+        const items = await obsManager.getSceneItemList(sceneName);
+        if (typeof callback === 'function') callback({ success: true, items });
+      } catch (err) {
+        if (typeof callback === 'function') callback({ error: err.message });
+      }
+    });
+
+    socket.on('obs:toggleSceneItem', async (data, callback) => {
+      try {
+        const { sceneName, sceneItemId } = data || {};
+        const res = await obsManager.toggleSceneItem(sceneName, sceneItemId);
+        io.emit('obs:sceneItemEnableStateChanged', res);
+        if (typeof callback === 'function') callback({ success: true, ...res });
+      } catch (err) {
+        if (typeof callback === 'function') callback({ error: err.message });
+      }
+    });
+
+    socket.on('obs:setSceneItemEnabled', async (data, callback) => {
+      try {
+        const { sceneName, sceneItemId, enabled } = data || {};
+        const res = await obsManager.setSceneItemEnabled(sceneName, sceneItemId, enabled);
+        io.emit('obs:sceneItemEnableStateChanged', res);
+        if (typeof callback === 'function') callback({ success: true, ...res });
+      } catch (err) {
+        if (typeof callback === 'function') callback({ error: err.message });
+      }
     });
 
     socket.on('sound:play', async (data, callback) => {

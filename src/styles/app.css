@@ -259,6 +259,63 @@ body {
   font-weight: 800;
 }
 
+/* Source Key Variant (Show/Hide) */
+.deck-key.source-key {
+  background-color: var(--app-card);
+  border: 1px solid var(--app-border);
+}
+
+.deck-key.source-key.source-active {
+  background-color: var(--app-card-active);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.deck-key.source-key.source-active .deck-key-icon {
+  color: #10b981;
+}
+
+.deck-key.source-key.source-hidden {
+  opacity: 0.55;
+  border-color: var(--app-border);
+}
+
+.deck-key.source-key.source-hidden .deck-key-icon {
+  color: var(--app-text-dim);
+}
+
+.deck-key-sub {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--app-text-dim);
+  text-align: center;
+  line-height: 1.1;
+  margin-top: -3px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Source Modal Items */
+.source-modal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background-color: var(--app-card);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  gap: 10px;
+}
+
+.source-modal-item-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
 /* Edit Mode on Keys */
 .deck-key.is-editing {
   border-style: dashed;

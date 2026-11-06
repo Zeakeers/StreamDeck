@@ -1,9 +1,11 @@
-import { state } from './state.js';
+import { state, saveCustomSources } from './state.js';
 import {
   setSocket,
   updateObsStatusUI,
   updateBgmUI,
   renderScenes,
+  renderCustomSources,
+  syncCustomSources,
   renderSoundboard,
   renderBgm,
   renderMixer
@@ -54,6 +56,8 @@ export function initSocketListeners() {
     renderSoundboard();
     renderBgm();
     renderMixer();
+    renderCustomSources();
+    syncCustomSources(socket);
   });
 
   socket.on('obs:connected', (obsState) => {
@@ -61,6 +65,8 @@ export function initSocketListeners() {
     updateObsStatusUI();
     renderScenes();
     renderMixer();
+    renderCustomSources();
+    syncCustomSources(socket);
   });
 
   socket.on('obs:disconnected', () => {
@@ -70,6 +76,7 @@ export function initSocketListeners() {
     updateObsStatusUI();
     renderScenes();
     renderMixer();
+    renderCustomSources();
   });
 
   socket.on('obs:sceneChanged', (data) => {
@@ -82,6 +89,8 @@ export function initSocketListeners() {
     updateObsStatusUI();
     renderScenes();
     renderMixer();
+    renderCustomSources();
+    syncCustomSources(socket);
   });
 
   socket.on('obs:streamStateChanged', (data) => {
@@ -101,6 +110,23 @@ export function initSocketListeners() {
     }
     updateObsStatusUI();
     renderMixer();
+  });
+
+  socket.on('obs:sceneItemEnableStateChanged', (data) => {
+    if (!data) return;
+    let changed = false;
+    state.customSources.forEach((cs) => {
+      if (cs.sceneName === data.sceneName && Number(cs.sceneItemId) === Number(data.sceneItemId)) {
+        if (cs.enabled !== data.sceneItemEnabled) {
+          cs.enabled = data.sceneItemEnabled;
+          changed = true;
+        }
+      }
+    });
+    if (changed) {
+      saveCustomSources(state.customSources);
+      renderCustomSources();
+    }
   });
 
   socket.on('sound:started', (data) => {

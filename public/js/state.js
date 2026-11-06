@@ -9,6 +9,13 @@ export const state = {
     isStreaming: false,
     isRecording: false
   },
+  customSources: (() => {
+    try {
+      return JSON.parse(localStorage.getItem('sd_custom_sources') || '[]');
+    } catch (_) {
+      return [];
+    }
+  })(),
   sounds: [],
   bgm: {
     tracks: [],
@@ -35,6 +42,13 @@ export function haptic(ms = 25) {
       navigator.vibrate(ms);
     } catch (_) {}
   }
+}
+
+export function saveCustomSources(sources) {
+  state.customSources = sources;
+  try {
+    localStorage.setItem('sd_custom_sources', JSON.stringify(sources));
+  } catch (_) {}
 }
 
 let currentTheme = localStorage.getItem('sd_theme') || 'dark';

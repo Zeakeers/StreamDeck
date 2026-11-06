@@ -142,6 +142,37 @@ function createApiRouter({ obsManager, audioManager, bgmManager, configService, 
     }
   });
 
+  router.get('/obs/scenes/:sceneName/items', async (req, res) => {
+    try {
+      const items = await obsManager.getSceneItemList(req.params.sceneName);
+      res.json({ success: true, items });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.post('/obs/toggle-source', async (req, res) => {
+    try {
+      const { sceneName, sceneItemId } = req.body;
+      const result = await obsManager.toggleSceneItem(sceneName, sceneItemId);
+      if (io) io.emit('obs:sceneItemEnableStateChanged', result);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.post('/obs/set-source', async (req, res) => {
+    try {
+      const { sceneName, sceneItemId, enabled } = req.body;
+      const result = await obsManager.setSceneItemEnabled(sceneName, sceneItemId, enabled);
+      if (io) io.emit('obs:sceneItemEnableStateChanged', result);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
   // Sounds
   router.get('/sounds', (req, res) => {
     res.json(audioManager.getSounds());
