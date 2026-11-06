@@ -8,11 +8,6 @@ let cachedConfig = null;
 function loadConfig() {
   const defaults = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
 
-  if (process.env.PORT) defaults.server.port = parseInt(process.env.PORT, 10) || 3000;
-  if (process.env.OBS_HOST) defaults.obs.host = process.env.OBS_HOST;
-  if (process.env.OBS_PORT) defaults.obs.port = parseInt(process.env.OBS_PORT, 10) || 4455;
-  if (process.env.OBS_PASSWORD !== undefined) defaults.obs.password = process.env.OBS_PASSWORD;
-
   if (fs.existsSync(RUNTIME_PATH)) {
     try {
       const runtime = JSON.parse(fs.readFileSync(RUNTIME_PATH, 'utf8'));
@@ -24,10 +19,18 @@ function loadConfig() {
         soundboard: { ...defaults.soundboard, ...(runtime.soundboard || {}) },
         bgm: { ...defaults.bgm, ...(runtime.bgm || {}) }
       };
-      return cachedConfig;
-    } catch (_) {}
+    } catch (_) {
+      cachedConfig = defaults;
+    }
+  } else {
+    cachedConfig = defaults;
   }
-  cachedConfig = defaults;
+
+  if (process.env.PORT) cachedConfig.server.port = parseInt(process.env.PORT, 10) || 3000;
+  if (process.env.OBS_HOST) cachedConfig.obs.host = process.env.OBS_HOST;
+  if (process.env.OBS_PORT) cachedConfig.obs.port = parseInt(process.env.OBS_PORT, 10) || 4455;
+  if (process.env.OBS_PASSWORD !== undefined) cachedConfig.obs.password = process.env.OBS_PASSWORD;
+
   return cachedConfig;
 }
 
@@ -63,6 +66,7 @@ function updateConfig(partial) {
 
 module.exports = {
   DEFAULT_CONFIG,
+  loadConfig,
   getConfig,
   saveConfig,
   updateConfig
